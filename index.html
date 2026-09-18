@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <title>Aura Life Dashboard</title>
+  <meta name="description" content="Dashboard académico offline-first: notas, tareas, horario de clases, calendario y asistente IA para tu vida universitaria.">
+  <meta name="theme-color" content="#0d0d11">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AURA">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.find.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/views.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="ambient">
+    <div class="orb orb--violet"></div>
+    <div class="orb orb--cyan"></div>
+    <div class="orb orb--center"></div>
+    <div class="aurora-beam aurora-beam--1"></div>
+    <div class="aurora-beam aurora-beam--2"></div>
+  </div>
+
+  <!-- ================= Header flotante ultra-delgado (pill-bar glass) ================= -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="header-left">
+        <!-- Hamburguesa: abre/cierra el menú lateral en todos los tamaños -->
+        <button class="icon-btn menu-btn" id="menuBtn" aria-label="Abrir o cerrar el menú lateral" aria-expanded="false" aria-controls="sidebar" title="Menú">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
+      </div>
+
+      <!-- Estado de sincronización en la nube: 🟢 nube / 🟡 local / 🔴 error -->
+      <button class="cloud-chip cloud-chip--local" id="cloudChip" role="status" title="Estado de sincronización — toca para configurar" aria-label="Estado de sincronización">
+        <span class="cloud-dot"></span>
+        <span id="cloudChipText">Guardado local</span>
+      </button>
+
+      <div class="header-actions">
+        <button class="icon-btn" id="installBtn" hidden aria-label="Instalar app">
+          <span class="material-symbols-outlined">download</span>
+        </button>
+        <button class="icon-btn" id="themeToggle" aria-label="Cambiar tema">
+          <span class="material-symbols-outlined icon-sun">light_mode</span>
+          <span class="material-symbols-outlined icon-moon">dark_mode</span>
+        </button>
+        <button class="icon-btn" id="settingsBtn" aria-label="Ajustes">
+          <span class="material-symbols-outlined">settings</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= Sidebar principal ================= -->
+  <div class="sidebar-scrim" id="sidebarScrim"></div>
+  <aside class="sidebar" id="sidebar" aria-label="Panel principal">
+    <div class="side-brand">
+      <button class="icon-btn" id="sidebarCollapseBtn" title="Cambiar modo del panel (expandido / compacto / oculto)" aria-label="Cambiar modo del panel">
+        <span class="material-symbols-outlined">left_panel_close</span>
+      </button>
+    </div>
+    <nav class="side-nav">
+      <button class="side-item active" data-view="dashboard" data-tip="Inicio">
+        <span class="material-symbols-outlined">space_dashboard</span> <span class="side-label">Inicio</span>
+      </button>
+      <button class="side-item" data-view="calendar" data-tip="Agenda">
+        <span class="material-symbols-outlined">calendar_month</span> <span class="side-label">Agenda</span>
+      </button>
+      <button class="side-item" data-view="tasks" data-tip="Tareas">
+        <span class="material-symbols-outlined">checklist</span> <span class="side-label">Tareas</span>
+        <span class="side-badge" id="tasksBadgeSide" hidden>0</span>
+      </button>
+      <button class="side-item" data-view="notes" data-tip="Notas">
+        <span class="material-symbols-outlined">stylus_note</span> <span class="side-label">Notas</span>
+      </button>
+      <button class="side-item" data-view="timetable" data-tip="Horario">
+        <span class="material-symbols-outlined">schedule</span> <span class="side-label">Horario</span>
+      </button>
+      <button class="side-item" data-action="materias" data-tip="Materias">
+        <span class="material-symbols-outlined">menu_book</span> <span class="side-label">Materias</span>
+      </button>
+      <button class="side-item" data-view="vault" data-tip="Bóveda IA">
+        <span class="material-symbols-outlined">psychology</span> <span class="side-label">Bóveda IA</span>
+      </button>
+      <button class="side-item" data-view="settings" data-tip="Ajustes">
+        <span class="material-symbols-outlined">settings</span> <span class="side-label">Ajustes</span>
+      </button>
+    </nav>
+    <div class="side-foot">
+      <span class="muted small">Aura v2.0 · Cloud-first</span>
+    </div>
+  </aside>
+
+  <main class="app-main">
+    <!-- ================= Dashboard ================= -->
+    <section class="view active" id="view-dashboard">
+      <div class="view-head">
+        <div>
+          <h1 class="view-title">Hola, <span class="accent" id="dashName">Estudiante</span> 👋</h1>
+          <p class="view-sub" id="dashGreeting">Tu centro de mando académico.</p>
+        </div>
+        <div class="pill pill--cyan">
+          <span class="pulse-dot"></span>
+          <span id="clockTime">--:--</span>
+        </div>
+      </div>
+
+      <div class="dash-grid">
+        <div class="card card--hover stat-card" data-goto="tasks">
+          <div class="stat-icon stat-icon--violet"><span class="material-symbols-outlined">check_circle</span></div>
+          <div>
+            <div class="stat-value" id="statTasks">0</div>
+            <div class="stat-label">Pendientes</div>
+          </div>
+        </div>
+        <div class="card card--hover stat-card" data-goto="calendar">
+          <div class="stat-icon stat-icon--cyan"><span class="material-symbols-outlined">event</span></div>
+          <div>
+            <div class="stat-value" id="statToday">0</div>
+            <div class="stat-label">Para hoy</div>
+          </div>
+        </div>
+        <div class="card card--hover stat-card" data-goto="timetable">
+          <div class="stat-icon stat-icon--warn"><span class="material-symbols-outlined">schedule</span></div>
+          <div>
+            <div class="stat-value" id="statWeek">0</div>
+            <div class="stat-label">Esta semana</div>
+          </div>
+        </div>
+        <div class="card card--hover stat-card" data-goto="notes">
+          <div class="stat-icon stat-icon--alert"><span class="material-symbols-outlined">sticky_note_2</span></div>
+          <div>
+            <div class="stat-value" id="statNotes">0</div>
+            <div class="stat-label">Notas</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h3><span class="material-symbols-outlined">wb_twilight</span> Agenda de hoy</h3>
+          <button class="chip" data-goto="calendar">Ver calendario</button>
+        </div>
+        <div class="card" style="padding:14px;">
+          <div id="todayList" class="day-timeline" style="margin-top:0;"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <h3><span class="material-symbols-outlined">bolt</span> Accesos rápidos</h3>
+        </div>
+        <div class="quick-grid">
+          <button class="quick-btn" data-action="capture" title="Ingresar tarea o nota" aria-label="Ingresar">
+            <span class="material-symbols-outlined">add_circle</span>
+          </button>
+          <button class="quick-btn" data-action="quick-voice" title="Dictado rápido por voz" aria-label="Dictado rápido">
+            <span class="material-symbols-outlined">mic</span>
+          </button>
+          <button class="quick-btn" data-action="vault" title="Preguntar a la Bóveda" aria-label="Bóveda IA">
+            <span class="material-symbols-outlined">psychology</span>
+          </button>
+          <button class="quick-btn" data-goto="timetable" title="Horario de clases" aria-label="Horario">
+            <span class="material-symbols-outlined">schedule</span>
+          </button>
+          <button class="quick-btn" data-goto="notes" title="Nueva nota" aria-label="Nueva nota">
+            <span class="material-symbols-outlined">stylus_note</span>
+          </button>
+          <button class="quick-btn" data-action="materias" title="Gestionar materias" aria-label="Materias">
+            <span class="material-symbols-outlined">menu_book</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= Calendar ================= -->
+    <section class="view" id="view-calendar">
+      <div class="view-head">
+        <div class="head-left">
+          <button class="icon-btn back-btn" data-back aria-label="Volver">
+            <span class="material-symbols-outlined">arrow_back</span>
+          </button>
+          <div>
+            <h1 class="view-title">Calendario</h1>
+            <p class="view-sub">Clases, tareas y exámenes por materia.</p>
+          </div>
+        </div>
+        <div class="segmented" style="width:max-content;">
+          <button id="calModeMonth" class="active">Mes</button>
+          <button id="calModeWeek">Semana</button>
+        </div>
+      </div>
+
+      <div class="card" style="padding:16px;">
+        <div class="cal-toolbar">
+          <div class="row">
+            <button class="icon-btn" id="calPrev" aria-label="Anterior">
+              <span class="material-symbols-outlined">chevron_left</span>
+            </button>
+            <button class="icon-btn" id="calTodayBtn" aria-label="Hoy" style="width:auto;padding:0 12px;border-radius:99px;font-size:12px;font-weight:700;">Hoy</button>
+            <button class="icon-btn" id="calNext" aria-label="Siguiente">
+              <span class="material-symbols-outlined">chevron_right</span>
+            </button>
+            <div class="cal-title" id="calTitle">—</div>
+          </div>
+          <button class="chip" id="materiasListBtn">📚 Materias</button>
+        </div>
+        <div id="calDow" class="cal-grid"></div>
+        <div id="calGrid" class="cal-grid" style="margin-top:6px;"></div>
+        <div id="calWeekView" class="list mt-16" hidden></div>
+      </div>
+
+      <div class="card mt-16" style="padding:14px;">
+        <div class="row row--between">
+          <b id="selDateLabel">—</b>
+          <button class="btn btn--sm btn--ghost" id="selAdd">+ Tarea este día</button>
+        </div>
+        <div id="selList" class="list mt-8"></div>
+      </div>
+    </section>
+
+    <!-- ================= Tasks ================= -->
+    <section class="view" id="view-tasks">
+      <div class="view-head">
+        <div class="head-left">
+          <button class="icon-btn back-btn" data-back aria-label="Volver">
+            <span class="material-symbols-outlined">arrow_back</span>
+          </button>
+          <div>
+            <h1 class="view-title">Tareas</h1>
+            <p class="view-sub">Exámenes, entregas y pendientes por materia.</p>
+          </div>
+        </div>
+        <button class="btn btn--primary" id="newTaskBtn">＋ Nueva tarea</button>
+      </div>
+      <div class="row mb-8" style="flex-wrap:wrap;">
+        <div class="segmented" style="width:max-content;">
+          <button id="tasksFilterPending" class="active">Pendientes</button>
+          <button id="tasksFilterAll">Todas</button>
+        </div>
+        <select class="input" id="tasksFilterMateria" style="width:auto;">
+          <option value="">Todas las materias</option>
+        </select>
+      </div>
+      <div id="tasksList" class="list"></div>
+    </section>
+
+    <!-- ================= Notes ================= -->
+    <section class="view" id="view-notes">
+      <div class="view-head">
+        <div class="head-left">
+          <button class="icon-btn back-btn" data-back aria-label="Volver">
+            <span class="material-symbols-outlined">arrow_back</span>
+          </button>
+          <div>
+            <h1 class="view-title">Notas</h1>
+            <p class="view-sub">Tu bóveda de conocimiento académico.</p>
+          </div>
+        </div>
+        <div class="row" style="flex-wrap:wrap;">
+          <button class="btn btn--primary" id="newNoteBtn">＋ Nueva nota</button>
+          <button class="btn btn--cyan" id="timelineBtn"><span class="material-symbols-outlined">timeline</span> Línea de Tiempo</button>
+        </div>
+      </div>
+      <div class="row mb-8">
+        <input class="input grow" id="notesSearch" type="search" placeholder="Buscar en tus notas…">
+        <select class="input" id="notesFilterMateria" style="width:auto;">
+          <option value="">Todas las materias</option>
+          <option value="VIDA_COTIDIANA">🏠 Vida Cotidiana (Sin materia)</option>
+        </select>
+      </div>
+      <div id="notesGrid" class="notes-grid"></div>
+    </section>
+
+    <!-- ================= Timetable (Horario Académico) ================= -->
+    <section class="view" id="view-timetable">
+      <div class="view-head">
+        <div class="head-left">
+          <button class="icon-btn back-btn" data-back aria-label="Volver">
+            <span class="material-symbols-outlined">arrow_back</span>
+          </button>
+          <div>
+            <h1 class="view-title">Horario Académico</h1>
+            <p class="view-sub">Horario fijo de clases del semestre · toca un bloque para editarlo.</p>
+          </div>
+        </div>
+        <div class="row" style="flex-wrap:wrap;">
+          <button class="btn btn--cyan" data-action="materias">📚 Gestionar Materias</button>
+          <button class="btn btn--primary" id="ttAddBtn">＋ Nueva clase</button>
+        </div>
+      </div>
+      <div class="tt-legend" id="ttLegend"></div>
+      <div class="card tt-card">
+        <div class="tt-grid no-scrollbar" id="ttGrid"></div>
+      </div>
+      <div id="ttEmpty" class="empty" hidden>
+        <span class="material-symbols-outlined">schedule</span>
+        <p>Aún no hay clases en tu horario. Toca una celda libre o pulsa <b>＋ Nueva clase</b> para empezar.</p>
+      </div>
+    </section>
+
+    <!-- ================= Editor ================= -->
+    <section class="view" id="view-editor">
+      <div class="view-head">
+        <div class="row grow">
+          <button class="icon-btn" id="editorBack" aria-label="Volver">
+            <span class="material-symbols-outlined">arrow_back</span>
+          </button>
+          <div class="grow">
+            <h1 class="view-title" id="editorHeading" style="font-size:20px;">Nueva nota</h1>
+          </div>
+          <button class="btn btn--primary" id="editorSaveBtn">Guardar</button>
+        </div>
+      </div>
+      <div class="card editor-wrap" style="padding:18px;">
+        <input class="editor-title" id="editorTitle" placeholder="Título de la nota…">
+        <div class="editor-meta">
+          <select class="input" id="editorMateria" style="width:auto;">
+            <option value="">Sin materia</option>
+            <option value="VIDA_COTIDIANA">🏠 Vida Cotidiana (Sin materia)</option>
+          </select>
+          <button class="chip" id="editorLinkBtn">[[ Enlazar ]]</button>
+          <button class="chip" id="editorImageBtn">🖼️ Imagen</button>
+          <button class="chip" id="editorPreviewBtn">👁️ Vista previa</button>
+          <input type="file" id="editorImageInput" accept="image/*" multiple hidden>
+        </div>
+        <textarea class="input" id="editorContent" placeholder="Escribe en Markdown… soporta [[Enlaces]] a notas/materias, **negrita**, listas, código…" style="min-height:40vh;"></textarea>
+        <div id="editorPreview" class="editor-preview" hidden></div>
+        <div class="attach-row mt-8" id="editorAttachRow"></div>
+      </div>
+    </section>
+
+    <!-- ================= Vault ================= -->
+    <section class="view vault-view" id="view-vault">
+      <div class="view-head" style="margin-bottom:8px;">
+        <div class="head-left">
+          <button class="icon-btn back-btn" data-back aria-label="Volver">
+            <span class="material-symbols-outlined">arrow_back</span>
+          </button>
+          <div>
+            <h1 class="view-title">🧠 Bóveda IA</h1>
+            <p class="view-sub">Pregunta sobre tus apuntes — con contexto de tu base de datos.</p>
+          </div>
+        </div>
+      </div>
+      <div id="vaultChat" class="vault-chat">
+        <div class="empty" id="vaultEmpty">
+          <span class="material-symbols-outlined">psychology</span>
+          <p>Pregunta lo que quieras sobre tus apuntes, tareas y materias.<br>Ej.: <i>"¿Qué temas veo en Cálculo?"</i></p>
+          <div class="vault-context-chips" style="justify-content:center;">
+            <button class="chip" data-q="¿Qué tengo pendiente esta semana?">Pendientes de la semana</button>
+            <button class="chip" data-q="Hazme un plan de estudio para esta semana con mis tareas y exámenes.">Plan de estudio</button>
+            <button class="chip" data-q="Resume los temas principales de todas mis notas.">Resumen general</button>
+          </div>
+        </div>
+      </div>
+      <div class="vault-input-zone">
+        <div class="vault-input-row">
+          <button class="icon-btn" id="vaultMicBtn" aria-label="Preguntar por voz">
+            <span class="material-symbols-outlined">mic</span>
+          </button>
+          <textarea id="vaultInput" rows="1" placeholder="Pregunta a la bóveda…"></textarea>
+          <button class="btn btn--primary btn--icon" id="vaultSendBtn" aria-label="Enviar">
+            <span class="material-symbols-outlined">send</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= Settings ================= -->
+    <section class="view" id="view-settings">
+      <div class="view-head">
+        <div class="head-left">
+          <button class="icon-btn back-btn" data-back aria-label="Volver">
+            <span class="material-symbols-outlined">arrow_back</span>
+          </button>
+          <div>
+            <h1 class="view-title">Ajustes</h1>
+            <p class="view-sub">IA, materias, sincronización, notificaciones y datos.</p>
+          </div>
+        </div>
+      </div>
+      <div class="settings-list">
+
+        <div class="card settings-group">
+          <h3><span class="material-symbols-outlined">menu_book</span> Materias y Horario</h3>
+          <p class="hint" style="margin:0 0 12px;">Administra tus cursos (código, profesor, color) y construye tu horario fijo de clases del semestre.</p>
+          <div class="row">
+            <button class="btn btn--primary" data-action="materias">📚 Gestionar Materias</button>
+            <button class="btn btn--ghost" data-goto="timetable">Ver Horario</button>
+          </div>
+        </div>
+
+        <div class="card settings-group">
+          <h3><span class="material-symbols-outlined">auto_awesome</span> Gemini AI</h3>
+          <div class="field">
+            <label for="setGeminiKey">API Key</label>
+            <input class="input" type="password" id="setGeminiKey" placeholder="AIza…" autocomplete="off">
+            <p class="hint">Consíguela en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Se guarda solo en tu dispositivo.</p>
+          </div>
+          <div class="field">
+            <label for="setGeminiModel">Modelo</label>
+            <select class="input" id="setGeminiModel">
+              <option value="gemini-3.5-flash" selected>gemini-3.5-flash (recomendado)</option>
+              <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+              <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+              <option value="gemini-flash-latest">gemini-flash-latest</option>
+            </select>
+          </div>
+          <button class="btn btn--cyan" id="testGeminiBtn">Probar conexión</button>
+          <div class="sync-test" id="geminiTestResult"></div>
+        </div>
+
+        <div class="card settings-group">
+          <h3><span class="material-symbols-outlined">cloud_sync</span> Sincronización en la nube</h3>
+          <p class="hint" style="margin:0 0 12px;">Sincronización bidireccional automática en segundo plano entre este dispositivo y tu base CouchDB / IBM Cloudant en la nube. Funciona en PC y celular con la misma URL.</p>
+          <div class="field">
+            <label for="setCouchURL">URL remota (HTTPS)</label>
+            <input class="input" id="setCouchURL" type="url" placeholder="https://apikey-v2-xxx:secret@tu-cuenta.cloudantnosqldb.appdomain.cloud/aura" autocomplete="off">
+            <p class="hint">IBM Cloudant → cuenta → Service credentials. También vale CouchDB propio: <code>https://admin:pass@tu-dominio.com:6984/aura</code>. La credencial se guarda solo en tu dispositivo y la sync se reanuda sola al abrir la app o recuperar conexión.</p>
+          </div>
+          <div class="row">
+            <button class="btn btn--cyan" id="testSyncBtn">Probar</button>
+            <button class="btn btn--ghost" id="startSyncBtn">Sincronizar</button>
+            <button class="btn btn--ghost" id="stopSyncBtn">Detener</button>
+          </div>
+          <div class="sync-test" id="syncTestResult"></div>
+        </div>
+
+        <div class="card settings-group">
+          <h3><span class="material-symbols-outlined">notifications_active</span> Notificaciones</h3>
+          <div class="row row--between">
+            <div class="grow">
+              <b style="font-size:13px;">Alertas de tareas y clases</b>
+              <p class="hint" style="margin:2px 0 0;">Te aviso 30 minutos antes del vencimiento.</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setNotifications">
+              <span class="track"></span>
+            </label>
+          </div>
+          <p class="hint mt-8">Requiere permiso del navegador. Los recordatorios se evalúan cada minuto mientras la app esté abierta.</p>
+        </div>
+
+        <div class="card settings-group">
+          <h3><span class="material-symbols-outlined">person</span> Perfil</h3>
+          <div class="field">
+            <label for="setUserName">Tu nombre</label>
+            <input class="input" id="setUserName" placeholder="Estudiante">
+          </div>
+          <div class="row mt-8">
+            <button class="btn btn--primary" id="saveSettingsBtn">Guardar ajustes</button>
+          </div>
+        </div>
+
+        <div class="card settings-group">
+          <h3><span class="material-symbols-outlined">database</span> Datos locales</h3>
+          <div class="row">
+            <button class="btn btn--ghost" id="exportBtn">⬇️ Exportar JSON</button>
+            <button class="btn btn--danger" id="wipeBtn">🗑️ Borrar todo</button>
+          </div>
+          <p class="hint mt-8">La exportación incluye notas, tareas, materias, clases del horario y adjuntos en base64.</p>
+        </div>
+
+        <p class="hint" style="text-align:center;">Aura Life Dashboard v2.0 · Liquid Glass · Offline-first PWA</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= Floating Action Dock (Botones A y B) ================= -->
+  <div class="action-dock">
+    <button class="btn btn--primary" id="btnAddEntry">
+      <span class="material-symbols-outlined">add</span> Ingresar
+      <span class="mic-bubble"><span class="material-symbols-outlined">mic</span></span>
+    </button>
+    <button class="btn btn--cyan" id="btnAskVault">
+      <span class="material-symbols-outlined">psychology</span> Preguntar a la Bóveda
+    </button>
+  </div>
+
+  <!-- ================= Bottom Navigation ================= -->
+  <nav class="nav-hub-wrap" aria-label="Navegación principal">
+    <div class="nav-hub">
+      <button class="nav-item active" data-view="dashboard">
+        <span class="material-symbols-outlined">space_dashboard</span>
+        Inicio
+      </button>
+      <button class="nav-item" data-view="calendar">
+        <span class="material-symbols-outlined">calendar_month</span>
+        Agenda
+      </button>
+      <button class="nav-item" data-view="tasks">
+        <span class="material-symbols-outlined">checklist</span>
+        Tareas
+        <span class="nav-badge" id="tasksBadge" hidden>0</span>
+      </button>
+      <button class="nav-item" data-view="notes">
+        <span class="material-symbols-outlined">stylus_note</span>
+        Notas
+      </button>
+      <button class="nav-item" data-view="timetable">
+        <span class="material-symbols-outlined">schedule</span>
+        Horario
+      </button>
+      <button class="nav-item" data-action="materias">
+        <span class="material-symbols-outlined">menu_book</span>
+        Materias
+      </button>
+    </div>
+  </nav>
+
+  <!-- ================= Quick Capture Modal (Botón A) ================= -->
+  <div class="modal-root" id="captureModal">
+    <div class="modal-scrim" data-close></div>
+    <div class="modal-panel card card--float">
+      <div class="modal-head">
+        <div>
+          <h2 id="captureTitle">Ingresar</h2>
+          <p id="captureSub">Escribe, dicta o deja que la IA lo estructura.</p>
+        </div>
+        <button class="icon-btn" data-close aria-label="Cerrar">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="segmented">
+          <button id="capModeManual" class="active">✍️ Manual</button>
+          <button id="capModeVoice">🎙️ Voz + IA</button>
+        </div>
+
+        <!-- Manual form -->
+        <div id="capManual" class="mode-note-grid">
+          <div class="segmented" id="capTypeSeg">
+            <button data-type="tarea" class="active">✅ Tarea / Examen</button>
+            <button data-type="nota">🗒️ Nota</button>
+          </div>
+          <div class="field">
+            <label for="capTitulo">Título</label>
+            <input class="input" id="capTitulo" placeholder="Ej: Entregar problema set 4">
+          </div>
+          <div class="field">
+            <label for="capMateria">Materia</label>
+            <input class="input" id="capMateria" list="materiasDatalist" placeholder="Ej: Cálculo II">
+            <datalist id="materiasDatalist"></datalist>
+          </div>
+          <div class="inline-fields">
+            <div class="field" id="capFechaField">
+              <label for="capFecha">Vence</label>
+              <input class="input" type="datetime-local" id="capFecha">
+            </div>
+            <div class="field" id="capContenidoField" hidden>
+              <label for="capContenidoQuick">Contenido</label>
+              <textarea class="input" id="capContenidoQuick" rows="3" placeholder="Apunte rápido…"></textarea>
+            </div>
+          </div>
+          <button class="btn btn--primary" id="capSaveBtn">Guardar</button>
+        </div>
+
+        <!-- Voice panel -->
+        <div id="capVoice" class="voice-panel" hidden>
+          <button class="voice-orb" id="voiceOrb" aria-label="Dictar">
+            <span class="material-symbols-outlined">mic</span>
+          </button>
+          <div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="voice-transcript" id="voiceTranscript">Toca el orbe y dicta.<br>Ej: «Entrega del laboratorio de física para el viernes a las 5»</div>
+          <div class="voice-hint">La transcripción se enviará a Gemini para extraer tipo, materia, título y fecha.</div>
+          <div id="parsePreview" class="parse-preview" hidden></div>
+          <div class="row" style="justify-content:center;">
+            <button class="btn btn--ghost btn--sm" id="voiceCancelBtn">Cancelar</button>
+            <button class="btn btn--primary" id="voiceSaveBtn" disabled>Guardar resultado</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Timeline Modal ================= -->
+  <div class="modal-root" id="timelineModal">
+    <div class="modal-scrim" data-close></div>
+    <div class="modal-panel card card--float">
+      <div class="modal-head">
+        <div>
+          <h2>Línea de Tiempo</h2>
+          <p>Notas creadas o editadas en un día concreto.</p>
+        </div>
+        <button class="icon-btn" data-close aria-label="Cerrar">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="timelineDatePicker">Fecha</label>
+          <input type="date" id="timelineDatePicker" class="input">
+        </div>
+        <div id="timelineInfo" class="timeline-info" hidden></div>
+        <div id="timelineResults" class="list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Subject Manager Modal ================= -->
+  <div class="modal-root" id="materiaModal">
+    <div class="modal-scrim" data-close></div>
+    <div class="modal-panel card card--float">
+      <div class="modal-head">
+        <div>
+          <h2 id="materiaModalTitle">Gestionar Materias</h2>
+          <p id="materiaModalSub">Cursos con código, profesor y color — se poblan en notas, tareas y horario.</p>
+        </div>
+        <button class="icon-btn" data-close aria-label="Cerrar">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="card materia-form">
+          <div class="row row--between">
+            <b id="materiaFormTitle" style="font-size:13px;">➕ Nueva materia</b>
+            <button class="chip" id="materiaCancelEditBtn" hidden>✕ Cancelar edición</button>
+          </div>
+          <div class="inline-fields">
+            <div class="field">
+              <label for="materiaNombre">Nombre</label>
+              <input class="input" id="materiaNombre" placeholder="Ej: Física I">
+            </div>
+            <div class="field">
+              <label for="materiaCodigo">Código de curso</label>
+              <input class="input" id="materiaCodigo" placeholder="Ej: FIS-101">
+            </div>
+          </div>
+          <div class="inline-fields">
+            <div class="field">
+              <label for="materiaProfesor">Profesor</label>
+              <input class="input" id="materiaProfesor" placeholder="Ej: Dra. Ríos">
+            </div>
+            <div class="field">
+              <label for="materiaColor">Color distintivo</label>
+              <input type="color" class="input-color" id="materiaColor" value="#8b5cf6">
+            </div>
+          </div>
+          <button class="btn btn--primary" id="materiaAddBtn">Añadir materia</button>
+        </div>
+        <div id="materiasList" class="list"></div>
+        <p class="hint">Al eliminar una materia, sus tareas y notas no se borran. Eliminar una clase del horario no afecta la materia.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Class Modal (Horario Académico) ================= -->
+  <div class="modal-root" id="classModal">
+    <div class="modal-scrim" data-close></div>
+    <div class="modal-panel card card--float" style="width:min(480px, calc(100vw - 32px));">
+      <div class="modal-head">
+        <div>
+          <h2 id="clsModalTitle">Nueva clase</h2>
+          <p id="clsModalSub">Se repite todas las semanas del semestre.</p>
+        </div>
+        <button class="icon-btn" data-close aria-label="Cerrar">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="clsMateria">Materia</label>
+          <div class="row">
+            <select class="input grow" id="clsMateria"></select>
+            <button class="chip" data-action="materias" title="Gestionar materias">📚</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="clsAula">Aula / Bloque / Sala</label>
+          <input class="input" id="clsAula" placeholder="Ej: Bloque C · Aula 204">
+        </div>
+        <div class="inline-fields">
+          <div class="field">
+            <label for="clsInicio">Hora de inicio</label>
+            <input class="input" type="time" id="clsInicio" value="08:00">
+          </div>
+          <div class="field">
+            <label for="clsFin">Hora de fin</label>
+            <input class="input" type="time" id="clsFin" value="10:00">
+          </div>
+        </div>
+        <div class="field">
+          <label>Días de la semana</label>
+          <div class="days-picker" id="clsDias">
+            <label class="chk"><input type="checkbox" value="1"><span>L</span></label>
+            <label class="chk"><input type="checkbox" value="2"><span>M</span></label>
+            <label class="chk"><input type="checkbox" value="3"><span>X</span></label>
+            <label class="chk"><input type="checkbox" value="4"><span>J</span></label>
+            <label class="chk"><input type="checkbox" value="5"><span>V</span></label>
+            <label class="chk"><input type="checkbox" value="6"><span>S</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn--danger" id="clsDeleteBtn" hidden>Eliminar</button>
+        <button class="btn btn--ghost" data-close>Cancelar</button>
+        <button class="btn btn--primary" id="clsSaveBtn">Guardar clase</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Vault mic listening overlay ================= -->
+  <div class="modal-root" id="vaultMicModal">
+    <div class="modal-scrim" data-close></div>
+    <div class="modal-panel card card--float" style="width:min(420px, calc(100vw - 32px));">
+      <div class="modal-body" style="align-items:center;text-align:center;">
+        <button class="voice-orb listening" id="vaultOrbStop" aria-label="Detener">
+          <span class="material-symbols-outlined">mic</span>
+        </button>
+        <div class="wave on"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="voice-transcript" id="vaultVoiceTranscript">Escuchando… toca el orbe para detener.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+
+  <script src="js/ui.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/gemini.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/capture.js"></script>
+  <script src="js/vault.js"></script>
+  <script src="js/timeline.js"></script>
+  <script src="js/timetable.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

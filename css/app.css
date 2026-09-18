@@ -1,0 +1,462 @@
+/* ============================================================
+   AURA — app.css (complementos sobre views/components)
+   ============================================================ */
+
+/* ---------- hidden attribute siempre gana ---------- */
+[hidden] { display: none !important; }
+
+/* ---------- Vault view: necesita display:flex al activarse ---------- */
+.view.vault-view { display: none; }
+.view.vault-view.active { display: flex; }
+
+/* ============================================================
+   SIDEBAR PRINCIPAL
+   Móvil: drawer oculto + scrim.  ≥1100px: fija con modos
+   expanded / rail / hidden (clases en <html>, persistente).
+   ============================================================ */
+.sidebar {
+  position: fixed;
+  top: 0; bottom: 0; left: 0;
+  z-index: 90;
+  width: min(300px, 84vw);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: calc(env(safe-area-inset-top, 0px) + 18px) 14px calc(env(safe-area-inset-bottom, 0px) + 14px);
+  background: var(--glass-3);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+  backdrop-filter: var(--glass-blur-strong);
+  border-right: 1px solid var(--rim);
+  transform: translateX(-105%);
+  transition: transform var(--t-slow) var(--ease-inout), width var(--t-slow) var(--ease-inout);
+  box-shadow: var(--shadow-glass), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.sidebar.open { transform: translateX(0); }
+
+.sidebar-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  background: rgba(5, 5, 8, 0.45);
+  -webkit-backdrop-filter: blur(10px) saturate(1.3);
+  backdrop-filter: blur(10px) saturate(1.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-med) var(--ease-out);
+}
+.sidebar-scrim.show { opacity: 1; pointer-events: auto; }
+
+/* Esquina superior izquierda limpia: solo el control de colapso (sin logos) */
+.side-brand {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 4px 4px 14px;
+  border-bottom: 1px solid var(--rim-faint);
+}
+
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  flex: 1;
+}
+.side-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: left;
+  transition: all var(--t-ui) var(--ease-standard);
+  -webkit-tap-highlight-color: transparent;
+}
+.side-item .material-symbols-outlined { font-size: 21px; color: var(--text-3); transition: color var(--t-ui) var(--ease-standard); }
+.side-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); }
+.side-item:hover .material-symbols-outlined { color: var(--violet-bright); }
+.side-item:active { transform: scale(0.97); }
+.side-item.active {
+  background: var(--violet-soft);
+  border-color: rgba(139, 92, 246, 0.35);
+  color: var(--violet-bright);
+}
+.side-item.active .material-symbols-outlined { color: var(--violet-bright); filter: drop-shadow(0 0 8px rgba(139,92,246,0.6)); }
+
+.side-badge {
+  margin-left: auto;
+  min-width: 18px; height: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  background: var(--alert);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.55);
+}
+
+/* ---------- Tooltip glass para el modo compacto (solo iconos) ---------- */
+.side-item::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-6px);
+  padding: 7px 12px;
+  border-radius: var(--r-sm);
+  background: var(--glass-2);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--rim-strong);
+  box-shadow: var(--shadow-glass);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  display: none;               /* solo se muestran en modo compacto (rail) */
+  pointer-events: none;
+  z-index: 95;
+  transition: opacity var(--t-ui) var(--ease-standard), transform var(--t-ui) var(--ease-standard), visibility 0s linear var(--t-ui);
+}
+html.side-rail .side-item::after { display: block; }
+.side-item:hover::after,
+.side-item:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+  transition-delay: 300ms, 300ms, 0s;
+}
+.side-foot { padding: 10px 8px 0; border-top: 1px solid var(--rim-faint); }
+
+/* Botón hamburguesa: solo móvil/tablet */
+.menu-btn { display: inline-flex; }
+
+/* ---------- Desktop: sidebar fija con modos ---------- */
+@media (min-width: 1100px) {
+  .sidebar {
+    transform: translateX(0);
+    box-shadow: none;
+    width: 300px;
+  }
+  .sidebar-scrim { display: none; }
+  .menu-btn { display: inline-flex; }
+  html.side-expanded .menu-btn { display: none; }
+
+  html.side-expanded .app-header,
+  html.side-expanded .action-dock { left: 300px; }
+  html.side-expanded .app-main {
+    padding-left: calc(300px + 24px);
+    padding-right: 24px;
+    max-width: none;
+  }
+  html.side-expanded .header-inner { max-width: 1140px; }
+  html.side-expanded .install-hint { left: calc(300px + (100vw - 300px) / 2); }
+
+  /* ---- Modo rail: solo iconos + tooltips ---- */
+  html.side-rail .sidebar { width: 76px; padding-left: 10px; padding-right: 10px; }
+  html.side-rail .app-header,
+  html.side-rail .action-dock { left: 76px; transition: left var(--t-slow) var(--ease-inout); }
+  html.side-rail .app-main {
+    padding-left: calc(76px + 24px);
+    transition: padding var(--t-slow) var(--ease-inout);
+  }
+  html.side-rail .side-label,
+  html.side-rail .side-foot { opacity: 0; width: 0; overflow: hidden; white-space: nowrap; }
+  html.side-rail .side-item { justify-content: center; padding: 10px; gap: 0; }
+  html.side-rail .side-badge { position: absolute; top: 6px; right: 8px; margin: 0; }
+  html.side-rail .sidebar .side-label,
+  html.side-rail .sidebar .side-foot {
+    transition: opacity var(--t-med) var(--ease-out);
+  }
+  html.side-rail #sidebarCollapseBtn { display: none; }
+
+  /* ---- Modo hidden: fuera de pantalla ---- */
+  html.side-hidden .sidebar { transform: translateX(-105%); }
+  html.side-hidden .sidebar.peek { transform: translateX(0); box-shadow: 24px 0 64px -24px rgba(0,0,0,0.55); }
+  html.side-hidden .app-header,
+  html.side-hidden .action-dock { left: 0; }
+  html.side-hidden .app-main { padding-left: 24px; }
+  html.side-hidden .install-hint { left: 50%; }
+
+  /* Franja caliente en el borde para asomar la sidebar oculta */
+  .sidebar-edge {
+    position: fixed;
+    top: 0; bottom: 0; left: 0;
+    width: 10px;
+    z-index: 88;
+  }
+}
+@media (max-width: 1099px) {
+  .sidebar-edge { display: none; }
+}
+
+/* Botón colapsar (solo desktop) */
+#sidebarCollapseBtn { display: none; }
+@media (min-width: 1100px) {
+  #sidebarCollapseBtn { display: inline-flex; }
+  html.side-rail #sidebarCollapseBtn { display: none; }
+}
+
+/* ---------- Header layout ---------- */
+.menu-btn { flex-shrink: 0; }
+
+/* ============================================================
+   BOTONES DE RETROCESO (data-back)
+   ============================================================ */
+.head-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.back-btn { flex-shrink: 0; }
+/* En desktop la sidebar ya da contexto: ocultar back de primer nivel */
+@media (min-width: 1100px) {
+  .view-head .back-btn { display: none; }
+}
+
+/* ============================================================
+   ACCESOS RÁPIDOS — solo iconos (quick-btn)
+   ============================================================ */
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media (min-width: 480px) { .quick-grid { grid-template-columns: repeat(6, 1fr); } }
+
+.quick-btn {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--r-lg);
+  background: var(--glass-1);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--rim);
+  color: var(--text-2);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--t-med) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.quick-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.quick-btn .material-symbols-outlined {
+  font-size: 26px;
+  color: var(--violet-bright);
+  filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.35));
+  transition: transform var(--t-med) var(--ease-spring);
+}
+.quick-btn:nth-child(2) .material-symbols-outlined { color: var(--cyan); filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.35)); }
+.quick-btn:nth-child(4) .material-symbols-outlined { color: var(--cyan); }
+.quick-btn:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: var(--glow-violet);
+  transform: translateY(-3px);
+}
+.quick-btn:hover .material-symbols-outlined { transform: scale(1.12); }
+.quick-btn:active { transform: scale(0.94); }
+
+/* Tooltip nativo con title; badge visual para "mic" activo */
+
+/* ---------- Vault suggestions & markdown rendering ---------- */
+.msg-bubble h1, .msg-bubble h2, .msg-bubble h3 { margin: 0.6em 0 0.3em; }
+.msg-bubble h1 { font-size: 1.2em; } .msg-bubble h2 { font-size: 1.1em; } .msg-bubble h3 { font-size: 1.05em; }
+.msg-bubble li { margin: 2px 0; }
+.msg-bubble strong { color: var(--violet-bright); }
+.msg-bubble hr { border: none; border-top: 1px solid var(--rim); margin: 8px 0; }
+.msg-bubble blockquote {
+  margin: 0.5em 0; padding: 4px 12px;
+  border-left: 3px solid var(--cyan);
+  background: var(--cyan-soft); border-radius: 0 8px 8px 0;
+}
+
+/* ---------- Editor preview (rendered markdown) ---------- */
+.editor-preview {
+  min-height: 40vh;
+  padding: 12px 4px;
+  font-size: 14.5px;
+  line-height: 1.7;
+}
+.editor-preview h1 { font-size: 1.45em; } .editor-preview h2 { font-size: 1.25em; } .editor-preview h3 { font-size: 1.1em; }
+.editor-preview img { border-radius: var(--r-md); max-width: 100%; border: 1px solid var(--rim); }
+.editor-preview code { font-family: ui-monospace, monospace; background: var(--violet-soft); padding: 1px 6px; border-radius: 6px; color: var(--violet-bright); }
+.editor-preview pre { background: var(--glass-input); border: 1px solid var(--rim); padding: 12px; border-radius: var(--r-md); overflow-x: auto; }
+.editor-preview blockquote { margin: 0.6em 0; padding: 6px 14px; border-left: 3px solid var(--violet); background: var(--violet-soft); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.editor-preview a { color: var(--cyan); }
+.editor-preview a.wlink { color: var(--violet-bright); text-decoration: none; border-bottom: 1px dashed rgba(139,92,246,0.5); cursor: pointer; }
+.editor-preview ul, .editor-preview ol { padding-left: 1.4em; }
+
+/* ---------- Calendar week view ---------- */
+.week-day { padding: 12px 14px; }
+.week-day.today { border-color: rgba(34,211,238,0.45); box-shadow: var(--glow-cyan); }
+.week-day .wd-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.week-day .wd-name { font-size: 13px; font-weight: 800; text-transform: capitalize; }
+.week-day .wd-num { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+/* ---------- Subject rows (modal Materias) ---------- */
+.materia-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--glass-input);
+  border: 1px solid var(--rim-faint);
+}
+.materia-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 10px currentColor; }
+.materia-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.materia-info b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.materia-row .muted { font-size: 11px; }
+
+/* Formulario de alta/edición dentro del modal Materias */
+.materia-form {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px;
+  background: var(--glass-input);
+}
+.materia-form .btn { align-self: flex-start; }
+.input-color {
+  width: 100%; height: 42px;
+  padding: 4px;
+  background: var(--glass-input);
+  border: 1px solid var(--rim);
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+
+/* Selector de días (modal de clase) */
+.days-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.chk { position: relative; }
+.chk input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.chk span {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  border-radius: 12px;
+  background: var(--glass-input);
+  border: 1px solid var(--rim);
+  font-size: 12px; font-weight: 800;
+  color: var(--text-3);
+  transition: all var(--t-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.chk:hover span { border-color: var(--rim-strong); color: var(--text-2); }
+.chk input:checked + span {
+  background: var(--violet);
+  border-color: var(--violet);
+  color: #fff;
+  box-shadow: var(--glow-violet);
+}
+.chk input:focus-visible + span { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+/* ---------- Materia tag colored inline ---------- */
+.materia-tag { border: 1px solid transparent; }
+
+/* ---------- Sync pill (ahora en el pie del sidebar) ---------- */
+.sync-pill { margin-top: 8px; margin-bottom: 6px; font-size: 10px; padding: 3px 8px; align-self: flex-start; }
+.sync-pill.syncing .pulse-dot { animation-duration: 0.8s; }
+.sync-pill.error { background: var(--alert-soft); color: var(--alert); }
+.sync-pill.offline { background: var(--warn-soft); color: var(--warn); }
+.side-foot { display: flex; flex-direction: column; }
+html.side-rail .sync-pill { display: none; }
+html.side-rail .side-foot { border-top: 1px solid var(--rim-faint); }
+
+/* ---------- Stat value delta ---------- */
+.stat-card .stat-icon { flex-shrink: 0; }
+
+/* ---------- Timeline overdue ---------- */
+.timeline-item.overdue { border-color: rgba(244,63,94,0.4); }
+.timeline-item.overdue .tl-time { color: var(--alert); }
+
+/* ---------- Notes grid thumbs (blob URLs) ---------- */
+.note-thumb { width: 100%; border-radius: var(--r-md); border: 1px solid var(--rim-faint); }
+
+/* ---------- Vault mic stop button ---------- */
+#vaultOrbStop { cursor: pointer; }
+
+/* ---------- Install banner ---------- */
+.install-hint {
+  position: fixed;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 78px);
+  left: 50%; transform: translateX(-50%);
+  z-index: 55;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--r-full);
+  background: var(--glass-2);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--rim-strong);
+  box-shadow: 0 12px 32px -8px rgba(0,0,0,0.5);
+  font-size: 12.5px; font-weight: 600;
+  white-space: nowrap;
+  animation: toast-in 0.5s var(--ease-spring);
+}
+.install-hint button {
+  border: none; background: var(--violet); color: #fff;
+  border-radius: 99px; padding: 6px 14px; font-weight: 700; font-size: 12px;
+}
+.install-hint .dismiss { background: transparent; color: var(--text-3); padding: 6px; }
+@media (min-width: 1100px) {
+  html.side-expanded .install-hint { left: calc(300px + (100vw - 300px) / 2); }
+  html.side-rail .install-hint { left: calc(76px + (100vw - 76px) / 2); }
+}
+
+/* ---------- Empty list variant ---------- */
+.empty--sm { padding: 28px 16px; }
+.empty--sm .material-symbols-outlined { font-size: 28px; }
+
+/* ---------- Toast icon default ---------- */
+.toast .material-symbols-outlined { line-height: 1; }
+
+/* Especular sheen con posición del cursor: tarjetas glass */
+.card:hover::after {
+  background: var(--glass-highlight), var(--glass-sheen);
+}
+
+/* ---------- Animaciones de badge (pop al aparecer) ---------- */
+.side-badge, .nav-badge { animation: badge-pop 0.45s var(--ease-spring); }
+@keyframes badge-pop { from { transform: scale(0); } }
+
+/* ---------- Shimmer en el orb de voz activo ---------- */
+.voice-orb.listening {
+  background: linear-gradient(135deg, var(--violet), var(--cyan), var(--violet));
+  background-size: 200% 200%;
+  animation: orb-pulse 1.6s var(--ease-inout) infinite, orb-shift 3s linear infinite;
+}
+@keyframes orb-shift { to { background-position: 200% 50%; } }
+
+/* ---------- Focus visible (accesibilidad: anillo limpio y visible) ---------- */
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; border-radius: 4px; }
+.btn:focus-visible,
+.icon-btn:focus-visible,
+.chip:focus-visible,
+.nav-item:focus-visible,
+.side-item:focus-visible,
+.quick-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; box-shadow: 0 0 0 5px rgba(34, 211, 238, 0.18); }
+
+/* ---------- Vault height con header de 48px ---------- */
+.vault-view { height: calc(100dvh - 64px - env(safe-area-inset-top, 0px) - var(--fab-zone)); }
