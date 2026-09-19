@@ -213,3 +213,127 @@ html.light .aurora-beam { opacity: 0.35; }
 /* ---------- Safe areas ---------- */
 .pt-safe  { padding-top: env(safe-area-inset-top, 0px); }
 .pb-safe  { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* ============================================================
+   THEME TOKENS — alias genéricos + paletas Liquid Glass / Neón
+   El tema activo se aplica vía [data-theme] en <html> desde
+   settings.js (persistido en localStorage). Solo se retokenizan
+   variables CSS: cero cambios en la lógica de DB/sync.
+   ============================================================ */
+
+/* Tema predeterminado (Aura Violeta) */
+:root {
+  --primary-color: var(--violet);
+  --accent-color: var(--cyan);
+  --bg-glass: var(--glass-1);
+  --primary-soft: var(--violet-soft);
+  --accent-soft: var(--cyan-soft);
+  --glow-primary: var(--glow-violet);
+  --glow-accent: var(--glow-cyan);
+}
+
+/* a) Emerald / Cyberpunk — acentos verde neón #00ff9d, fondos verdes profundos */
+html[data-theme="emerald"] {
+  --violet: #00ff9d;
+  --violet-bright: #a7ffdb;
+  --violet-soft: rgba(0, 255, 157, 0.15);
+  --cyan: #34d399;
+  --cyan-deep: #10b981;
+  --cyan-soft: rgba(52, 211, 153, 0.13);
+  --bg: #050d0a;
+  --bg-elev: #0a1712;
+  --glass-1: rgba(10, 34, 26, 0.55);
+  --glass-2: rgba(13, 44, 34, 0.66);
+  --glass-3: rgba(6, 22, 17, 0.7);
+  --glass-input: rgba(8, 30, 23, 0.5);
+  --primary-color: #00ff9d;
+  --accent-color: #34d399;
+  --bg-glass: rgba(10, 34, 26, 0.55);
+  --primary-soft: rgba(0, 255, 157, 0.15);
+  --accent-soft: rgba(52, 211, 153, 0.13);
+  --glow-primary: 0 0 16px rgba(0, 255, 157, 0.4);
+  --glow-accent: 0 0 16px rgba(52, 211, 153, 0.3);
+  --glow-hover: 0 0 24px rgba(0, 255, 157, 0.6);
+  --glow-violet: 0 0 16px rgba(0, 255, 157, 0.4);
+  --glow-cyan: 0 0 16px rgba(52, 211, 153, 0.3);
+  --glow-violet-lg: 0 8px 32px -4px rgba(0, 255, 157, 0.25), 0 0 0 1px rgba(0, 255, 157, 0.4);
+  --theme-color-bg: #050d0a;
+}
+
+/* b) Sunset / Amber — acentos cálidos naranja/ámbar #ff8c00, fondos oscuros cálidos */
+html[data-theme="sunset"] {
+  --violet: #ff8c00;
+  --violet-bright: #ffd8a8;
+  --violet-soft: rgba(255, 140, 0, 0.16);
+  --cyan: #ff5e3a;
+  --cyan-deep: #f43f5e;
+  --cyan-soft: rgba(255, 94, 58, 0.13);
+  --bg: #120c07;
+  --bg-elev: #1b1209;
+  --glass-1: rgba(43, 26, 10, 0.55);
+  --glass-2: rgba(54, 33, 13, 0.66);
+  --glass-3: rgba(28, 17, 7, 0.7);
+  --glass-input: rgba(38, 23, 9, 0.5);
+  --primary-color: #ff8c00;
+  --accent-color: #ff5e3a;
+  --bg-glass: rgba(43, 26, 10, 0.55);
+  --primary-soft: rgba(255, 140, 0, 0.16);
+  --accent-soft: rgba(255, 94, 58, 0.13);
+  --glow-primary: 0 0 16px rgba(255, 140, 0, 0.4);
+  --glow-accent: 0 0 16px rgba(255, 94, 58, 0.3);
+  --glow-hover: 0 0 24px rgba(255, 140, 0, 0.6);
+  --glow-violet: 0 0 16px rgba(255, 140, 0, 0.4);
+  --glow-cyan: 0 0 16px rgba(255, 94, 58, 0.3);
+  --glow-violet-lg: 0 8px 32px -4px rgba(255, 140, 0, 0.25), 0 0 0 1px rgba(255, 140, 0, 0.4);
+  --theme-color-bg: #120c07;
+}
+
+/* c) Sapphire / Ice — acentos azul cian/hielo #00e5ff, fondos azulados oscuros */
+html[data-theme="sapphire"] {
+  --violet: #00e5ff;
+  --violet-bright: #b8f4ff;
+  --violet-soft: rgba(0, 229, 255, 0.15);
+  --cyan: #38bdf8;
+  --cyan-deep: #0284c7;
+  --cyan-soft: rgba(56, 189, 248, 0.13);
+  --bg: #060b13;
+  --bg-elev: #0a1220;
+  --glass-1: rgba(10, 26, 46, 0.55);
+  --glass-2: rgba(13, 34, 58, 0.66);
+  --glass-3: rgba(6, 16, 30, 0.7);
+  --glass-input: rgba(8, 22, 40, 0.5);
+  --primary-color: #00e5ff;
+  --accent-color: #38bdf8;
+  --bg-glass: rgba(10, 26, 46, 0.55);
+  --primary-soft: rgba(0, 229, 255, 0.15);
+  --accent-soft: rgba(56, 189, 248, 0.13);
+  --glow-primary: 0 0 16px rgba(0, 229, 255, 0.4);
+  --glow-accent: 0 0 16px rgba(56, 189, 248, 0.3);
+  --glow-hover: 0 0 24px rgba(0, 229, 255, 0.6);
+  --glow-violet: 0 0 16px rgba(0, 229, 255, 0.4);
+  --glow-cyan: 0 0 16px rgba(56, 189, 248, 0.3);
+  --glow-violet-lg: 0 8px 32px -4px rgba(0, 229, 255, 0.25), 0 0 0 1px rgba(0, 229, 255, 0.4);
+  --theme-color-bg: #060b13;
+}
+
+/* Transición fluida al alternar temas (propiedades de color seguras) */
+body, .card, .app-header, .sidebar, .modal-panel, .input, .btn, .chip,
+.side-item, .nav-item, .quick-btn, .segmented, .cloud-chip {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: var(--t-med);
+  transition-timing-function: var(--ease-out);
+}
+
+/* Orbes ambientales tiñéndose con el tema activo */
+html[data-theme] .orb--violet {
+  background: radial-gradient(circle at 35% 35%, var(--primary-soft), transparent 65%);
+}
+html[data-theme] .orb--cyan {
+  background: radial-gradient(circle at 60% 60%, var(--accent-soft), transparent 65%);
+}
+html[data-theme] .orb--center {
+  background: radial-gradient(circle, var(--primary-soft), transparent 70%);
+}
+html[data-theme] .aurora-beam {
+  background: linear-gradient(180deg, transparent, var(--primary-soft), var(--accent-soft), transparent);
+}

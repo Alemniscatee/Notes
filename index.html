@@ -126,6 +126,20 @@
         </div>
       </div>
 
+      <!-- Buscador global de notas (lupa) -->
+      <div class="global-search" id="globalSearchWrap">
+        <button class="icon-btn global-search-toggle" id="globalSearchToggle" aria-label="Buscar notas" aria-expanded="false" aria-controls="globalSearchInput" title="Buscar en tus notas">
+          <span class="material-symbols-outlined">search</span>
+        </button>
+        <input class="input global-search-input" id="globalSearchInput" type="search"
+               placeholder="Buscar en todas tus notas… (título y contenido)" autocomplete="off" hidden>
+        <button class="icon-btn global-search-clear" id="globalSearchClear" aria-label="Limpiar búsqueda" hidden>
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="card global-search-results" id="globalSearchResults" hidden></div>
+
       <div class="dash-grid">
         <div class="card card--hover stat-card" data-goto="tasks">
           <div class="stat-icon stat-icon--violet"><span class="material-symbols-outlined">check_circle</span></div>
@@ -278,6 +292,9 @@
             <p class="view-sub">Tu bóveda.</p>
           </div>
         </div>
+        <button class="icon-btn" id="notesSearchToggle" aria-label="Buscar notas" aria-expanded="true" aria-controls="notesSearch" title="Buscar en tus notas">
+          <span class="material-symbols-outlined">search</span>
+        </button>
         <div class="row" style="flex-wrap:wrap;">
           <button class="btn btn--primary" id="newNoteBtn">＋ Nota</button>
           <button class="btn btn--cyan" id="importNotesBtn"><span class="material-symbols-outlined">upload_file</span> Importar</button>
@@ -285,7 +302,8 @@
           <button class="btn btn--cyan" id="timelineBtn"><span class="material-symbols-outlined">timeline</span> TimeLapse</button>
         </div>
       </div>
-      <div class="row mb-8">
+      <div class="row mb-8" id="notesSearchRow">
+        <span class="material-symbols-outlined notes-search-lupa" aria-hidden="true">search</span>
         <input class="input grow" id="notesSearch" type="search" placeholder="Buscar en tus notas…">
         <select class="input" id="notesFilterMateria" style="width:auto;">
           <option value="">Todas las materias</option>
@@ -516,6 +534,29 @@
         </div>
 
         <div class="card settings-group">
+          <h3><span class="material-symbols-outlined">palette</span> Tema de color</h3>
+          <p class="hint" style="margin:0 0 12px;">Elige la paleta Liquid Glass / Neón. Se guarda en tu dispositivo.</p>
+          <div class="theme-picker" id="themePicker">
+            <button class="theme-option active" data-theme-choice="" title="Aura Violeta (predeterminado)">
+              <span class="theme-swatch" style="background:linear-gradient(135deg,#8b5cf6,#22d3ee);"></span>
+              <span>Aura Violeta</span>
+            </button>
+            <button class="theme-option" data-theme-choice="emerald" title="Emerald / Cyberpunk">
+              <span class="theme-swatch" style="background:linear-gradient(135deg,#00ff9d,#050d0a);"></span>
+              <span>Emerald</span>
+            </button>
+            <button class="theme-option" data-theme-choice="sunset" title="Sunset / Amber">
+              <span class="theme-swatch" style="background:linear-gradient(135deg,#ff8c00,#ff5e3a);"></span>
+              <span>Sunset</span>
+            </button>
+            <button class="theme-option" data-theme-choice="sapphire" title="Sapphire / Ice">
+              <span class="theme-swatch" style="background:linear-gradient(135deg,#00e5ff,#060b13);"></span>
+              <span>Sapphire</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card settings-group">
           <h3><span class="material-symbols-outlined">person</span> Perfil</h3>
           <div class="field">
             <label for="setUserName">Nombre</label>
@@ -685,37 +726,45 @@
         </button>
       </div>
       <div class="modal-body">
-        <div class="card materia-form">
-          <div class="row row--between">
-            <b id="materiaFormTitle" style="font-size:13px;">+ materia</b>
-            <button class="chip" id="materiaCancelEditBtn" hidden>✕ Cancelar</button>
-          </div>
-          <div class="inline-fields">
-            <div class="field">
-              <label for="materiaNombre">Nombre</label>
-              <input class="input" id="materiaNombre" placeholder="Ej: Física I">
+          <!-- Desplegable de creación/edición (icono browse) -->
+          <button class="materia-browse-btn" id="materiaBrowseToggle" aria-expanded="false" aria-controls="materiaFormPanel">
+            <span class="material-symbols-outlined">browse</span>
+            <span id="materiaBrowseLabel">Crear / editar materia</span>
+            <span class="material-symbols-outlined materia-browse-chevron">expand_more</span>
+          </button>
+
+          <!-- Formulario oculto por defecto: solo visible al pulsar el botón browse -->
+          <div class="card materia-form" id="materiaFormPanel" hidden>
+            <div class="row row--between">
+              <b id="materiaFormTitle" style="font-size:13px;">➕ Nueva materia</b>
+              <button class="chip" id="materiaCancelEditBtn" hidden>✕ Cancelar</button>
+            </div>
+            <div class="inline-fields">
+              <div class="field">
+                <label for="materiaNombre">Nombre</label>
+                <input class="input" id="materiaNombre" placeholder="Ej: Física I">
+              </div>
+              <div class="field">
+                <label for="materiaCodigo">Código de curso</label>
+                <input class="input" id="materiaCodigo" placeholder="Ej: FIS-101">
+              </div>
+            </div>
+            <div class="inline-fields">
+              <div class="field">
+                <label for="materiaProfesorNombre">Nombre del profesor</label>
+                <input class="input" id="materiaProfesorNombre" placeholder="Ej: Dra. Sofía Ríos">
+              </div>
+              <div class="field">
+                <label for="materiaColor">Color</label>
+                <input type="color" class="input-color" id="materiaColor" value="#8b5cf6">
+              </div>
             </div>
             <div class="field">
-              <label for="materiaCodigo">Código de curso</label>
-              <input class="input" id="materiaCodigo" placeholder="Ej: FIS-101">
+              <label for="materiaProfesorDescripcion">Descripción del profesor</label>
+              <textarea class="input" id="materiaProfesorDescripcion" rows="2" placeholder="Ej: Tutora de la materia · consultas jueves 10–12 h · oficina 3B"></textarea>
             </div>
+            <button class="btn btn--primary" id="materiaAddBtn">Guardar Materia</button>
           </div>
-          <div class="inline-fields">
-            <div class="field">
-              <label for="materiaProfesorNombre">Nombre del profesor</label>
-              <input class="input" id="materiaProfesorNombre" placeholder="Ej: Dra. Sofía Ríos">
-            </div>
-            <div class="field">
-              <label for="materiaColor">Color</label>
-              <input type="color" class="input-color" id="materiaColor" value="#8b5cf6">
-            </div>
-          </div>
-          <div class="field">
-            <label for="materiaProfesorDescripcion">Descripción del profesor</label>
-            <textarea class="input" id="materiaProfesorDescripcion" rows="2" placeholder="Ej: Tutora de la materia · consultas jueves 10–12 h · oficina 3B"></textarea>
-          </div>
-          <button class="btn btn--primary" id="materiaAddBtn">+ materia</button>
-        </div>
         <div id="materiasList" class="list"></div>
         <p class="hint">Al eliminar una materia, sus tareas y notas no se borran. Eliminar una clase del horario no afecta la materia.</p>
       </div>

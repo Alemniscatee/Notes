@@ -7,6 +7,7 @@ const Settings = (() => {
 
   const DEFAULTS = {
     theme: 'dark',            // 'dark' | 'light'
+    colorTheme: '',           // '' (Aura Violeta) | 'emerald' | 'sunset' | 'sapphire'
     geminiKey: '',
     geminiModel: 'gemini-3.5-flash',
     couchURL: '',
@@ -43,7 +44,27 @@ const Settings = (() => {
   function applyTheme() {
     document.documentElement.classList.toggle('light', cache.theme === 'light');
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', cache.theme === 'light' ? '#f8fafc' : '#0d0d11');
+    if (meta) meta.setAttribute('content', cache.theme === 'light' ? '#f8fafc' : (PALETTE_BG[cache.colorTheme] || '#0d0d11'));
+  }
+
+  /* Paletas de color Liquid Glass / Neón (ver css/base.css: [data-theme])
+     '' = Aura Violeta (predeterminado). Persistencia vía Settings.patch → localStorage. */
+  const THEMES = ['', 'emerald', 'sunset', 'sapphire'];
+  const PALETTE_BG = { emerald: '#050d0a', sunset: '#120c07', sapphire: '#060b13' };
+
+  /* Aplica el atributo data-theme en <html> + tinte del theme-color de la PWA */
+  function applyColorTheme() {
+    const t = THEMES.includes(cache.colorTheme) ? cache.colorTheme : '';
+    if (t) document.documentElement.setAttribute('data-theme', t);
+    else document.documentElement.removeAttribute('data-theme');
+    applyTheme();
+  }
+
+  function setColorTheme(t) {
+    cache.colorTheme = THEMES.includes(t) ? t : '';
+    localStorage.setItem(KEY, JSON.stringify(cache));
+    applyColorTheme();
+    return cache.colorTheme;
   }
 
   /* Modo de sidebar en desktop: expanded | rail | hidden */
@@ -64,5 +85,5 @@ const Settings = (() => {
     return cache.sidebarMode;
   }
 
-  return { load, get, patch, applyTheme, applySidebarMode, cycleSidebarMode };
+  return { load, get, patch, applyTheme, applyColorTheme, setColorTheme, applySidebarMode, cycleSidebarMode };
 })();

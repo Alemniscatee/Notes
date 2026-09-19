@@ -209,7 +209,7 @@ const App = (() => {
   /* ================= Bootstrap ================= */
   async function init() {
     Settings.load();
-    Settings.applyTheme();
+    Settings.applyColorTheme();   // tema claro/oscuro + paleta neón persistida
     Settings.applySidebarMode();
     UI.initModals();
     UI.initRipple();
@@ -224,6 +224,8 @@ const App = (() => {
     bindTasks();
     bindNotes();
     bindMaterias();
+    bindGlobalSearch();
+    bindThemePicker();
     bindSettings();
     Cal.init();
     Editor.init();
@@ -481,10 +483,21 @@ const App = (() => {
     });
     $('notesSearch').addEventListener('input', renderNotes);
     $('notesFilterMateria').addEventListener('change', renderNotes);
+
+    // Lupa de la cabecera de Notas: muestra/oculta el campo y lo enfoca
+    $('notesSearchToggle').addEventListener('click', () => {
+      const row = $('notesSearchRow');
+      row.hidden = !row.hidden;
+      $('notesSearchToggle').setAttribute('aria-expanded', String(!row.hidden));
+      if (!row.hidden) $('notesSearch').focus();
+    });
   }
 
   async function renderNotes() {
-    const q = ($('notesSearch').value || '').toLowerCase();
+    const raw = ($('notesSearch').value || '').trim();
+    const q = raw.toLowerCase();
+    // La lupa se ilumina mientras hay una búsqueda activa
+    $('notesSearchRow')?.classList.toggle('search-active', !!q);
     const mat = $('notesFilterMateria').value || '';
 
     // Select de materias de NOTAS: opción fija VIDA_COTIDIANA + materias dinámicas
@@ -532,8 +545,8 @@ const App = (() => {
           <button class="note-del" data-del-note="${n._id}" aria-label="Eliminar nota: ${UI.escapeAttr(n.titulo || 'Sin título')}" title="Eliminar nota">
             <span class="material-symbols-outlined">delete</span>
           </button>
-          <h4>${UI.escapeHTML(n.titulo || 'Sin título')}</h4>
-          <p class="note-preview">${UI.escapeHTML(UI.stripMarkdown(n.contenido).slice(0, 160))}</p>
+          <h4>${highlightTerm(UI.escapeHTML(n.titulo || 'Sin título'), raw)}</h4>
+          <p class="note-preview">${highlightTerm(UI.escapeHTML(UI.stripMarkdown(n.contenido).slice(0, 160)), raw)}</p>
           <div class="note-foot">
             <span class="note-tag" style="background:${isDaily ? 'rgba(34,211,238,0.12)' : c + '22'};color:${c};${isDaily ? 'border:1px solid rgba(34,211,238,0.3);' : ''}">${tagLabel}</span>
             <span>${n.updatedAt ? new Date(n.updatedAt).toLocaleDateString('es-ES') : ''}</span>
@@ -606,6 +619,132 @@ const App = (() => {
     }
   }
 
+  /* ================= Buscador global de notas (lupa) =================
+     Búsqueda en tiempo real sobre título y cuerpo de todas las notas.
+     Visible en el Dashboard (desplegable con resultados) y como toggle
+     en la cabecera de Notas (filtra la cuadrícula en vivo). */
+  let currentGlobalQuery = '';
+
+  /* Resalta el término buscado en un texto YA escapado como HTML,
+     degradando con seguridad si el escapado deja entidades (&amp;…) */
+  function highlightTerm(escapedText, rawTerm) {
+    if (!rawTerm || !escapedText) return escapedText;
+    if (/[&<>"']/.test(escapedText)) return escapedText; // entidades: no resaltar
+    let out;
+    try {
+      out = escapedText.replace(
+        new RegExp('(' + rawTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'),
+        '<mark>$1</mark>');
+    } catch (e) { return escapedText; }
+    return out;
+  }
+
+  function bindGlobalSearch() {
+    const toggle = $('globalSearchToggle');
+    const input = $('globalSearchInput');
+    const clear = $('globalSearchClear');
+    const wrap = $('globalSearchWrap');
+
+    // La lupa despliega el campo, lo enfoca y salta a Notas si el usuario valida
+    toggle.addEventListener('click', () => {
+      const show = input.hidden;
+      input.hidden = !show;
+      clear.hidden = !show;
+      toggle.setAttribute('aria-expanded', String(show));
+      if (show) { input.focus(); return; }
+      if (input.value.trim()) showView('notes'); // la lupa abierta sin texto → nada que mostrar
+    });
+
+    input.addEventListener('input', () => {
+      currentGlobalQuery = input.value.trim();
+      clear.hidden = !currentGlobalQuery;
+      renderGlobalResults();
+      // Sincroniza el filtro del apartado Notas (búsqueda en tiempo real)
+      $('notesSearch').value = input.value;
+      if (currentView === 'notes') renderNotes();
+    });
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && input.value.trim()) showView('notes');
+    });
+
+    clear.addEventListener('click', () => {
+      input.value = '';
+      currentGlobalQuery = '';
+      clear.hidden = true;
+      renderGlobalResults();
+      $('notesSearch').value = '';
+      if (currentView === 'notes') renderNotes();
+      input.focus();
+    });
+
+    void wrap;
+  }
+
+  function renderGlobalResults() {
+    const box = $('globalSearchResults');
+    const q = currentGlobalQuery.toLowerCase();
+    if (!q) { box.hidden = true; box.innerHTML = ''; return; }
+
+    // Coincidencias por título y cuerpo de TODAS las notas guardadas
+    const hits = notesCache.filter(n =>
+      (n.titulo || '').toLowerCase().includes(q) ||
+      (n.contenido || '').toLowerCase().includes(q));
+
+    if (!hits.length) {
+      box.innerHTML = `<div class="gsr-empty">Sin notas que coincidan con "${UI.escapeHTML(currentGlobalQuery)}".</div>`;
+      box.hidden = false;
+      return;
+    }
+
+    const snippet = n => {
+      const body = UI.stripMarkdown(n.contenido || '');
+      const idx = body.toLowerCase().indexOf(q);
+      const start = Math.max(0, (idx < 0 ? 0 : idx) - 32);
+      const frag = (start > 0 ? '…' : '') + body.slice(start, start + 140);
+      return highlightTerm(UI.escapeHTML(frag), currentGlobalQuery);
+    };
+
+    const MAX = 8;
+    box.innerHTML = hits.slice(0, MAX).map(n => `
+      <button class="gsr-item" data-open-note="${n._id}">
+        <span class="gsr-title">
+          <span class="material-symbols-outlined">stylus_note</span>
+          ${highlightTerm(UI.escapeHTML(n.titulo || 'Sin título'), currentGlobalQuery)}
+        </span>
+        <span class="gsr-snip">${snippet(n)}</span>
+      </button>`).join('') +
+      (hits.length > MAX ? `<button class="gsr-more" id="gsrMore">Ver todas (${hits.length})</button>` : '');
+    box.hidden = false;
+
+    box.querySelectorAll('[data-open-note]').forEach(b =>
+      b.addEventListener('click', () => { box.hidden = true; Editor.open(b.dataset.openNote); }));
+    box.querySelector('#gsrMore')?.addEventListener('click', () => showView('notes'));
+  }
+
+  /* ================= Selector de temas (Ajustes) ================= */
+  function bindThemePicker() {
+    const picker = $('themePicker');
+    if (!picker) return;
+    markActiveThemeOption();
+    picker.querySelectorAll('[data-theme-choice]').forEach(btn =>
+      btn.addEventListener('click', () => {
+        Settings.setColorTheme(btn.dataset.themeChoice);   // persiste en localStorage
+        markActiveThemeOption();
+        UI.toast(
+          btn.dataset.themeChoice === 'emerald' ? 'Tema Emerald / Cyberpunk ✓' :
+          btn.dataset.themeChoice === 'sunset' ? 'Tema Sunset / Amber ✓' :
+          btn.dataset.themeChoice === 'sapphire' ? 'Tema Sapphire / Ice ✓' :
+          'Tema Aura Violeta ✓', 'ok', 1600);
+      }));
+  }
+
+  function markActiveThemeOption() {
+    const active = Settings.get().colorTheme || '';
+    document.querySelectorAll('[data-theme-choice]').forEach(btn =>
+      btn.classList.toggle('active', (btn.dataset.themeChoice || '') === active));
+  }
+
   /* ================= Materias (CRUD completo) ================= */
   function bindMaterias() {
     $('materiasListBtn').addEventListener('click', openMaterias);
@@ -614,23 +753,43 @@ const App = (() => {
     $('materiaNombre').addEventListener('keydown', e => {
       if (e.key === 'Enter') addMateria();
     });
+
+    // Desplegable de gestión (icono browse): muestra/oculta el formulario
+    $('materiaBrowseToggle').addEventListener('click', toggleMateriaForm);
+  }
+
+  /* Desplegable browse: el formulario llega oculto y solo se abre al pulsar */
+  function toggleMateriaForm() {
+    const panel = $('materiaFormPanel');
+    const open = panel.hidden;
+    panel.hidden = !open;
+    $('materiaBrowseToggle').setAttribute('aria-expanded', String(open));
+    if (open) $('materiaNombre').focus();
+  }
+
+  function setMateriaFormOpen(open) {
+    const panel = $('materiaFormPanel');
+    if (!panel) return;
+    panel.hidden = !open;
+    $('materiaBrowseToggle').setAttribute('aria-expanded', String(open));
   }
 
   function resetMateriaForm() {
     editingMateriaId = null;
     $('materiaFormTitle').textContent = '➕ Nueva materia';
-    $('materiaAddBtn').textContent = 'Añadir materia';
+    $('materiaAddBtn').textContent = 'Guardar Materia';
     $('materiaCancelEditBtn').hidden = true;
     $('materiaNombre').value = '';
     $('materiaCodigo').value = '';
-    $('materiaProfesor').value = '';
     $('materiaProfesorNombre').value = '';
     $('materiaProfesorDescripcion').value = '';
     $('materiaColor').value = '#8b5cf6';
+    $('materiaBrowseLabel').textContent = 'Crear / editar materia';
   }
 
   function openMaterias() {
     UI.openModal('materiaModal');
+    setMateriaFormOpen(false);   // gestión visible con el formulario plegado
     renderMaterias();
   }
 
@@ -684,10 +843,11 @@ const App = (() => {
     $('materiaCancelEditBtn').hidden = false;
     $('materiaNombre').value = s.nombre || '';
     $('materiaCodigo').value = s.codigo || '';
-    $('materiaProfesor').value = s.profesor || '';
     $('materiaProfesorNombre').value = s.profesorNombre || s.profesor || '';
     $('materiaProfesorDescripcion').value = s.profesorDescripcion || '';
     $('materiaColor').value = s.color || '#8b5cf6';
+    $('materiaBrowseLabel').textContent = 'Editando: ' + s.nombre;
+    setMateriaFormOpen(true);    // el desplegable browse abre el formulario en edición
     $('materiaNombre').focus();
   }
 
@@ -695,17 +855,30 @@ const App = (() => {
     const name = $('materiaNombre').value.trim();
     if (!name) { UI.toast('Escribe el nombre de la materia', 'err'); return; }
 
-    await Store.saveSubject(name, $('materiaColor').value, {
-      codigo: $('materiaCodigo').value.trim(),
-      profesor: ($('materiaProfesorNombre').value.trim() || $('materiaProfesor').value.trim()),
-      profesorNombre: $('materiaProfesorNombre').value.trim(),
-      profesorDescripcion: $('materiaProfesorDescripcion').value.trim()
-    }, editingMateriaId);
+    const btn = $('materiaAddBtn');
+    btn.disabled = true;
+    try {
+      // Persistencia directa en PouchDB (mantiene la API Store/DB intacta)
+      await Store.saveSubject(name, $('materiaColor').value, {
+        codigo: $('materiaCodigo').value.trim(),
+        profesor: $('materiaProfesorNombre').value.trim(),
+        profesorNombre: $('materiaProfesorNombre').value.trim(),
+        profesorDescripcion: $('materiaProfesorDescripcion').value.trim()
+      }, editingMateriaId);
+    } catch (e) {
+      UI.toast('No se pudo guardar: ' + e.message, 'err');
+      return;
+    } finally {
+      btn.disabled = false;
+    }
 
-    UI.toast(editingMateriaId ? 'Materia actualizada ✓' : 'Materia añadida ✓', 'ok');
+    // Confirmación de guardado → toast, refresco y autocierre del formulario
+    const wasEditing = !!editingMateriaId;
+    UI.toast(wasEditing ? 'Materia actualizada ✓' : 'Materia guardada ✓', 'ok');
     resetMateriaForm();
-    await refreshAll();
+    await refreshAll();          // refresca cachés + vista activa
     renderMaterias();
+    setMateriaFormOpen(false);   // cierre automático tras el guardado exitoso
   }
 
   async function ensureSubject(nombre, extras) {
