@@ -19,17 +19,28 @@ const UI = (() => {
   }
 
   /* ---------------- Modales ---------------- */
+  /* body.modal-open: oculta action-dock y nav-hub mientras haya una
+     ventana flotante abierta (menos redundancia visual en móvil). */
+  function syncChromeVisibility() {
+    const anyOpen = !!document.querySelector('.modal-root.open');
+    document.body.classList.toggle('modal-open', anyOpen);
+    if (!anyOpen && !document.body.classList.contains('editor-focus')) {
+      document.body.style.overflow = '';
+    }
+  }
   function openModal(id) {
     const root = document.getElementById(id);
     if (!root) return;
     root.classList.add('open');
     document.body.style.overflow = 'hidden';
+    syncChromeVisibility();
   }
   function closeModal(id) {
     const root = document.getElementById(id);
     if (!root) return;
     root.classList.remove('open');
     if (!document.querySelector('.modal-root.open')) document.body.style.overflow = '';
+    syncChromeVisibility();
   }
   function initModals() {
     document.querySelectorAll('.modal-root').forEach(root => {
@@ -92,6 +103,40 @@ const UI = (() => {
       .replace(/[#*_>`~]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
+  }
+
+  /* ---------------- Diagramas Mermaid ----------------
+   * Post-procesa un contenedor HTML ya renderizado: convierte
+   * <pre><code class="language-mermaid">…</code></pre> en diagramas
+   * visuales (mermaid.js vía CDN). Reutilizable por el editor,
+   * la Bóveda y cualquier vista previa. */
+  let mermaidSeq = 0;
+  async function renderCodeBlocks(container) {
+    if (!container) return;
+    const blocks = container.querySelectorAll('pre code.language-mermaid, pre code.lang-mermaid');
+    if (!blocks.length) return;
+    if (!window.mermaid) return;   // CDN no disponible: deja el código fuente
+    try {
+      window.mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: 'strict',
+        theme: document.documentElement.classList.contains('light') ? 'default' : 'dark'
+      });
+    } catch (e) { /* ya inicializado con otra config */ }
+    for (const code of blocks) {
+      const pre = code.closest('pre');
+      const src = code.textContent;
+      const holder = document.createElement('div');
+      holder.className = 'mermaid-box';
+      pre.replaceWith(holder);
+      try {
+        const { svg } = await window.mermaid.render('mmd-' + (++mermaidSeq), src);
+        holder.innerHTML = svg;
+      } catch (err) {
+        holder.innerHTML = '<pre class="mermaid-error"><code></code></pre>';
+        holder.querySelector('code').textContent = src;
+      }
+    }
   }
 
   /* ---------------- Fechas ---------------- */
@@ -182,7 +227,7 @@ const UI = (() => {
 
   return {
     toast, openModal, closeModal, initModals, initRipple,
-    mdToHTML, stripMarkdown,
+    mdToHTML, stripMarkdown, renderCodeBlocks,
     DIAS, MESES, fmtTime, fmtDate, fmtDateTime, dayKey, relTime, isOverdue,
     colorFor, PALETTE, escapeHTML, escapeAttr, initWikilinks, openWikilink
   };

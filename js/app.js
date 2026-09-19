@@ -17,6 +17,12 @@ const App = (() => {
   let deferredPrompt = null;
   let currentView = 'dashboard';
   let navHistory = [];            // historial para botones "volver"
+  let exitArmedAt = 0;            // ventana de 2 s para el doble "atrás" en móvil
+
+  /* ---- Render progresivo de notas (mobile perf) ---- */
+  const NOTES_PAGE_SIZE = 15;     // primera tanda pintada en el DOM
+  let notesFilteredCache = [];    // lista filtrada actual
+  let notesRendered = 0;          // tarjetas ya pintadas
 
   const $ = id => document.getElementById(id);
 
@@ -49,12 +55,84 @@ const App = (() => {
     if (name === 'timetable') Timetable.render();
 
     closeSidebar();
+    exitArmedAt = 0;              // navegar desarma el "presiona de nuevo para salir"
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
 
   function goBack() {
     const prev = navHistory.pop();
     showView(prev || 'dashboard', { back: true, replace: !prev });
+  }
+
+  /* ================= Botón físico "Atrás" (móvil) ================= */
+  /* Cierra la capa flotante más superior (modal > sidebar > editor).
+     Devuelve true si consumió el evento (no se sale de la app). */
+  function closeTopOverlay() {
+    const modal = document.querySelector('.modal-root.open');
+    if (modal) {
+      UI.closeModal(modal.id);
+      return true;
+    }
+    if ($('sidebar').classList.contains('open')) {
+      closeSidebar();
+      return true;
+    }
+    if (currentView === 'editor') { Editor.close(); return true; }
+    if (currentView !== 'dashboard') { showView('dashboard', { back: true }); return true; }
+    return false;
+  }
+
+  /* Historia sintética: cada vista/overlay hace pushState; el botón
+     físico "atrás" navega hacia atrás en vez de cerrar la app.
+     En el dashboard, requiere pulsar dos veces (2 s) para salir. */
+  function initBackHandler() {
+    if (!('pushState' in history)) return;
+
+    history.replaceState({ aura: 'root' }, '', location.href);
+
+    // Cada navegación interna deja una entrada sintética en el historial
+    document.addEventListener('click', e => {
+      const trigger = e.target.closest('[data-goto], [data-view], [data-action="materias"]');
+      if (!trigger) return;
+      setTimeout(() => {
+        try { history.pushState({ aura: 'view' }, '', location.href); } catch (err) {}
+      }, 0);
+    }, { passive: true });
+
+    // Modales: abrir deja entrada y cerrar (cualquier vía) la recupera
+    document.addEventListener('click', e => {
+      if (e.target.closest('[data-close]')) {
+        setTimeout(() => {
+          try { history.back(); } catch (err) {}
+        }, 0);
+        return;
+      }
+      const opener = e.target.closest('[data-action="capture"], [data-action="quick-voice"], [data-action="materias"]');
+      if (opener) {
+        setTimeout(() => {
+          try { history.pushState({ aura: 'modal' }, '', location.href); } catch (err) {}
+        }, 0);
+      }
+    }, { passive: true });
+
+    window.addEventListener('popstate', e => {
+      if (closeTopOverlay()) {
+        // Consumimos la entrada: reponemos el estado sintético actual
+        try { history.pushState({ aura: 'view' }, '', location.href); } catch (err) {}
+        return;
+      }
+      // Estamos en el dashboard: doble "atrás" (2 s) para salir
+      const now = Date.now();
+      if (now - exitArmedAt <= 2000) {
+        exitArmedAt = 0;
+        window.close();
+        setTimeout(() => history.back(), 120);
+      } else {
+        exitArmedAt = now;
+        UI.toast('Presiona de nuevo para salir', 'info', 2000);
+        try { history.pushState({ aura: 'root' }, '', location.href); } catch (err) {}
+      }
+    });
   }
 
   /* ================= Sidebar ================= */
@@ -172,6 +250,7 @@ const App = (() => {
 
     await refreshAll();
     fillSettingsForm();
+    initBackHandler();            // botón físico "Atrás" en móvil (History API)
 
     // Deeplinks PWA (shortcuts): ?action=capture|vault
     const params = new URLSearchParams(location.search);
@@ -393,6 +472,13 @@ const App = (() => {
   /* ================= Notas ================= */
   function bindNotes() {
     $('newNoteBtn').addEventListener('click', () => Editor.open());
+    // Importar .md / .pdf → nuevas notas en PouchDB (módulo Editor)
+    $('importNotesBtn').addEventListener('click', () => $('importNotesInput').click());
+    $('importNotesInput').addEventListener('change', e => {
+      const files = [...e.target.files];
+      e.target.value = '';
+      if (files.length) Editor.importFiles(files);
+    });
     $('notesSearch').addEventListener('input', renderNotes);
     $('notesFilterMateria').addEventListener('change', renderNotes);
   }
@@ -420,10 +506,22 @@ const App = (() => {
           <span class="material-symbols-outlined">stylus_note</span>
           <p>${q ? 'Sin resultados para tu búsqueda.' : mat === 'VIDA_COTIDIANA' ? 'Aún no hay notas de vida cotidiana. Créalas desde ＋ Nueva nota eligiendo 🏠 Vida Cotidiana.' : 'Tu bóveda está vacía. Crea tu primera nota.'}</p>
         </div>`;
+      notesFilteredCache = [];
+      notesRendered = 0;
       return;
     }
 
-    grid.innerHTML = list.map(n => {
+    /* Render progresivo: solo las primeras 15 notas se pintan al
+       entrar; el resto se añade al hacer scroll (IntersectionObserver). */
+    notesFilteredCache = list;
+    notesRendered = 0;
+    grid.innerHTML = '';
+    const sentinel = document.createElement('div');
+    sentinel.id = 'notesSentinel';
+    sentinel.style.gridColumn = '1 / -1';
+    grid.appendChild(sentinel);
+
+    const cardHTML = n => {
       const isDaily = n.materia === 'VIDA_COTIDIANA';
       const c = isDaily ? 'var(--cyan)' : UI.colorFor(n.materia, subjectsCache);
       const tagLabel = isDaily ? '🏠 Vida Cotidiana' : UI.escapeHTML(n.materia || 'General');
@@ -441,25 +539,56 @@ const App = (() => {
             <span>${n.updatedAt ? new Date(n.updatedAt).toLocaleDateString('es-ES') : ''}</span>
           </div>
         </div>`;
-    }).join('');
+    };
 
-    // Cargar thumbnails (blob URLs)
-    grid.querySelectorAll('[data-att]').forEach(async img => {
-      const url = await Store.getAttachment(img.dataset.att, img.dataset.name);
-      if (url) img.src = url;
-    });
-
-    // Abrir nota (el clic en el botón eliminar no debe propagarse)
-    grid.querySelectorAll('[data-note]').forEach(card =>
+    const bindCard = (card) => {
+      // Abrir nota (el clic en el botón eliminar no debe propagarse)
       card.addEventListener('click', e => {
         if (e.target.closest('.note-del')) return;
         Editor.open(card.dataset.note);
-      }));
-    grid.querySelectorAll('[data-del-note]').forEach(btn =>
-      btn.addEventListener('click', e => {
-        e.stopPropagation();
-        deleteNote(btn.dataset.delNote);
-      }));
+      });
+    };
+
+    function renderMoreNotes() {
+      const batch = notesFilteredCache.slice(notesRendered, notesRendered + NOTES_PAGE_SIZE);
+      if (!batch.length) return;
+      const frag = document.createDocumentFragment();
+      const tmp = document.createElement('div');
+      tmp.innerHTML = batch.map(cardHTML).join('');
+      while (tmp.firstChild) frag.appendChild(tmp.firstChild);
+      // insertar antes del sentinel
+      grid.insertBefore(frag, sentinel);
+      notesRendered += batch.length;
+
+      // Cargar thumbnails (blob URLs) solo del lote nuevo
+      grid.querySelectorAll('.note-card:not([data-loaded])').forEach(card => {
+        card.dataset.loaded = '1';
+        const img = card.querySelector('[data-att]');
+        if (img) {
+          Store.getAttachment(img.dataset.att, img.dataset.name).then(url => {
+            if (url) img.src = url;
+          });
+        }
+        bindCard(card);
+      });
+      grid.querySelectorAll('[data-del-note]:not([data-bound])').forEach(btn => {
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          deleteNote(btn.dataset.delNote);
+        });
+      });
+    }
+
+    renderMoreNotes();
+
+    if (notesRendered < notesFilteredCache.length) {
+      if (renderNotes._io) renderNotes._io.disconnect();
+      renderNotes._io = new IntersectionObserver(entries => {
+        if (entries.some(en => en.isIntersecting)) renderMoreNotes();
+      }, { rootMargin: '600px' });
+      renderNotes._io.observe(sentinel);
+    }
   }
 
   /* Borrado permanente en PouchDB (db.remove) + refresh de la vista sin recargar */
@@ -495,6 +624,8 @@ const App = (() => {
     $('materiaNombre').value = '';
     $('materiaCodigo').value = '';
     $('materiaProfesor').value = '';
+    $('materiaProfesorNombre').value = '';
+    $('materiaProfesorDescripcion').value = '';
     $('materiaColor').value = '#8b5cf6';
   }
 
@@ -511,12 +642,14 @@ const App = (() => {
     }
     list.innerHTML = subjectsCache.map(s => {
       const count = tasksCache.filter(t => t.materia === s.nombre && !t.hecho).length;
+      const prof = s.profesorNombre || s.profesor || '';
       return `
         <div class="materia-row">
           <span class="materia-dot" style="background:${s.color};color:${s.color};"></span>
           <div class="materia-info">
             <b>${UI.escapeHTML(s.nombre)}</b>
-            <span class="muted">${s.codigo ? `· ${UI.escapeHTML(s.codigo)} ` : ''}${s.profesor ? `· ${UI.escapeHTML(s.profesor)} ` : ''}</span>
+            <span class="muted">${s.codigo ? `· ${UI.escapeHTML(s.codigo)} ` : ''}${prof ? `· 👤 ${UI.escapeHTML(prof)} ` : ''}</span>
+            ${s.profesorDescripcion ? `<span class="materia-desc">${UI.escapeHTML(s.profesorDescripcion)}</span>` : ''}
           </div>
           <span class="muted">${count} pendiente${count === 1 ? '' : 's'}</span>
           <button class="icon-btn" data-editmat="${s._id}" style="width:32px;height:32px;" aria-label="Editar materia">
@@ -552,6 +685,8 @@ const App = (() => {
     $('materiaNombre').value = s.nombre || '';
     $('materiaCodigo').value = s.codigo || '';
     $('materiaProfesor').value = s.profesor || '';
+    $('materiaProfesorNombre').value = s.profesorNombre || s.profesor || '';
+    $('materiaProfesorDescripcion').value = s.profesorDescripcion || '';
     $('materiaColor').value = s.color || '#8b5cf6';
     $('materiaNombre').focus();
   }
@@ -562,7 +697,9 @@ const App = (() => {
 
     await Store.saveSubject(name, $('materiaColor').value, {
       codigo: $('materiaCodigo').value.trim(),
-      profesor: $('materiaProfesor').value.trim()
+      profesor: ($('materiaProfesorNombre').value.trim() || $('materiaProfesor').value.trim()),
+      profesorNombre: $('materiaProfesorNombre').value.trim(),
+      profesorDescripcion: $('materiaProfesorDescripcion').value.trim()
     }, editingMateriaId);
 
     UI.toast(editingMateriaId ? 'Materia actualizada ✓' : 'Materia añadida ✓', 'ok');
@@ -601,6 +738,7 @@ const App = (() => {
       }
     });
     $('exportBtn').addEventListener('click', exportJSON);
+    $('notesBackupBtn').addEventListener('click', () => Exporter.exportAllNotesJSON());
     $('wipeBtn').addEventListener('click', wipeDB);
   }
 

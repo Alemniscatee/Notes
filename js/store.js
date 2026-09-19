@@ -32,6 +32,9 @@ const Store = (() => {
     if (extras) {
       if (extras.codigo !== undefined) doc.codigo = String(extras.codigo).trim();
       if (extras.profesor !== undefined) doc.profesor = String(extras.profesor).trim();
+      // Campos extendidos del profesor (opcionales, no rompen docs existentes)
+      if (extras.profesorNombre !== undefined) doc.profesorNombre = String(extras.profesorNombre).trim();
+      if (extras.profesorDescripcion !== undefined) doc.profesorDescripcion = String(extras.profesorDescripcion).trim();
     }
     doc.updatedAt = Date.now();
     const r = await DB.get().put(doc);

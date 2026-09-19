@@ -136,9 +136,23 @@ const Capture = (() => {
       $('wave').classList.add('on');
       $('voiceTranscript').textContent = 'Escuchando…';
     };
+    /* FIX Voz: se espera a que el resultado sea FINAL (isFinal) para
+       disparar el flujo de guardado; los parciales solo alimentan el
+       feedback en pantalla. */
+    let finalHandled = false;
     recognition.onresult = e => {
       transcript = [...e.results].map(r => r[0].transcript).join('');
       $('voiceTranscript').textContent = `“${transcript}”`;
+      for (const res of e.results) {
+        if (res.isFinal && !finalHandled) {
+          finalHandled = true;
+          const finalText = res[0].transcript.trim();
+          if (finalText) {
+            try { recognition.stop(); } catch (err) {}
+            parseWithGemini(finalText);   // flujo automático hacia Store/DB
+          }
+        }
+      }
     };
     recognition.onerror = e => {
       listening = false;
@@ -152,7 +166,10 @@ const Capture = (() => {
       listening = false;
       orb.classList.remove('listening');
       $('wave').classList.remove('on');
-      if (transcript.trim()) parseWithGemini(transcript.trim());
+      // Fallback: si isFinal no llegó (algunos navegadores), usa el transcript acumulado
+      if (!finalHandled && transcript.trim()) parseWithGemini(transcript.trim());
+      else if (!finalHandled && !transcript.trim())
+        UI.toast('El dictado no capturó texto claro. Intenta de nuevo.', 'err', 4500);
     };
     recognition.start();
   }
@@ -173,6 +190,9 @@ const Capture = (() => {
       parsed = await Gemini.parseIntention(text, subjects, new Date());
       renderPreview(parsed);
       btn.disabled = false;
+      /* ENVÍO AUTOMÁTICO: guardado directo en la base de datos sin
+         requerir pulsar "Enviar". */
+      await saveParsed();
     } catch (err) {
       UI.toast(err.message || 'Error al interpretar con Gemini', 'err', 6000);
       $('voiceTranscript').textContent = 'No se pudo interpretar. Intenta de nuevo o usa el modo manual.';
@@ -193,7 +213,11 @@ const Capture = (() => {
   }
 
   async function saveParsed() {
-    if (!parsed) return;
+    if (!parsed) {
+      // El dictado no produjo texto interpretable
+      UI.toast('El dictado no capturó texto claro. Intenta de nuevo.', 'err', 4500);
+      return;
+    }
     const p = parsed;
     await App.ensureSubject(p.materia || 'General');
     if (p.tipo === 'tarea') {

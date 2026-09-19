@@ -23,6 +23,8 @@
   <script src="https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.find.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/components.css">
@@ -115,8 +117,8 @@
     <section class="view active" id="view-dashboard">
       <div class="view-head">
         <div>
-          <h1 class="view-title">Hola, <span class="accent" id="dashName">Estudiante</span> 👋</h1>
-          <p class="view-sub" id="dashGreeting">Tu centro de mando académico.</p>
+          <h1 class="view-title">Confirma, <span class="accent" id="dashName">Estudiante</span></h1>
+          <p class="view-sub" id="dashGreeting">Notas, deberes y pensamientos.</p>
         </div>
         <div class="pill pill--cyan">
           <span class="pulse-dot"></span>
@@ -136,14 +138,14 @@
           <div class="stat-icon stat-icon--cyan"><span class="material-symbols-outlined">event</span></div>
           <div>
             <div class="stat-value" id="statToday">0</div>
-            <div class="stat-label">Para hoy</div>
+            <div class="stat-label">Hoy</div>
           </div>
         </div>
         <div class="card card--hover stat-card" data-goto="timetable">
           <div class="stat-icon stat-icon--warn"><span class="material-symbols-outlined">schedule</span></div>
           <div>
             <div class="stat-value" id="statWeek">0</div>
-            <div class="stat-label">Esta semana</div>
+            <div class="stat-label">Semana</div>
           </div>
         </div>
         <div class="card card--hover stat-card" data-goto="notes">
@@ -157,8 +159,8 @@
 
       <div class="section">
         <div class="section-head">
-          <h3><span class="material-symbols-outlined">wb_twilight</span> Agenda de hoy</h3>
-          <button class="chip" data-goto="calendar">Ver calendario</button>
+          <h3><span class="material-symbols-outlined">wb_twilight</span> Eventos</h3>
+          <button class="chip" data-goto="calendar">Calendario</button>
         </div>
         <div class="card" style="padding:14px;">
           <div id="todayList" class="day-timeline" style="margin-top:0;"></div>
@@ -222,7 +224,7 @@
             </button>
             <div class="cal-title" id="calTitle">—</div>
           </div>
-          <button class="chip" id="materiasListBtn">📚 Materias</button>
+          <button class="chip" id="materiasListBtn">Materias</button>
         </div>
         <div id="calDow" class="cal-grid"></div>
         <div id="calGrid" class="cal-grid" style="margin-top:6px;"></div>
@@ -232,7 +234,7 @@
       <div class="card mt-16" style="padding:14px;">
         <div class="row row--between">
           <b id="selDateLabel">—</b>
-          <button class="btn btn--sm btn--ghost" id="selAdd">+ Tarea este día</button>
+          <button class="btn btn--sm btn--ghost" id="selAdd">+ Evento </button>
         </div>
         <div id="selList" class="list mt-8"></div>
       </div>
@@ -250,7 +252,7 @@
             <p class="view-sub">Exámenes, entregas y pendientes por materia.</p>
           </div>
         </div>
-        <button class="btn btn--primary" id="newTaskBtn">＋ Nueva tarea</button>
+        <button class="btn btn--primary" id="newTaskBtn">＋ Tarea</button>
       </div>
       <div class="row mb-8" style="flex-wrap:wrap;">
         <div class="segmented" style="width:max-content;">
@@ -273,19 +275,21 @@
           </button>
           <div>
             <h1 class="view-title">Notas</h1>
-            <p class="view-sub">Tu bóveda de conocimiento académico.</p>
+            <p class="view-sub">Tu bóveda.</p>
           </div>
         </div>
         <div class="row" style="flex-wrap:wrap;">
-          <button class="btn btn--primary" id="newNoteBtn">＋ Nueva nota</button>
-          <button class="btn btn--cyan" id="timelineBtn"><span class="material-symbols-outlined">timeline</span> Línea de Tiempo</button>
+          <button class="btn btn--primary" id="newNoteBtn">＋ Nota</button>
+          <button class="btn btn--cyan" id="importNotesBtn"><span class="material-symbols-outlined">upload_file</span> Importar</button>
+          <input type="file" id="importNotesInput" accept=".md,.markdown,.pdf,text/markdown,application/pdf" multiple hidden>
+          <button class="btn btn--cyan" id="timelineBtn"><span class="material-symbols-outlined">timeline</span> TimeLapse</button>
         </div>
       </div>
       <div class="row mb-8">
         <input class="input grow" id="notesSearch" type="search" placeholder="Buscar en tus notas…">
         <select class="input" id="notesFilterMateria" style="width:auto;">
           <option value="">Todas las materias</option>
-          <option value="VIDA_COTIDIANA">🏠 Vida Cotidiana (Sin materia)</option>
+          <option value="VIDA_COTIDIANA">Vida Cotidiana (Sin materia)</option>
         </select>
       </div>
       <div id="notesGrid" class="notes-grid"></div>
@@ -304,8 +308,8 @@
           </div>
         </div>
         <div class="row" style="flex-wrap:wrap;">
-          <button class="btn btn--cyan" data-action="materias">📚 Gestionar Materias</button>
-          <button class="btn btn--primary" id="ttAddBtn">＋ Nueva clase</button>
+          <button class="btn btn--cyan" data-action="materias">Gestionar Materias</button>
+          <button class="btn btn--primary" id="ttAddBtn">＋ Clase</button>
         </div>
       </div>
       <div class="tt-legend" id="ttLegend"></div>
@@ -314,38 +318,88 @@
       </div>
       <div id="ttEmpty" class="empty" hidden>
         <span class="material-symbols-outlined">schedule</span>
-        <p>Aún no hay clases en tu horario. Toca una celda libre o pulsa <b>＋ Nueva clase</b> para empezar.</p>
+        <p>Aún no hay clases en tu horario. Toca una celda libre o pulsa <b>＋ Clase</b> para empezar.</p>
       </div>
     </section>
 
-    <!-- ================= Editor ================= -->
+    <!-- ================= Editor (workspace tipo Obsidian) ================= -->
     <section class="view" id="view-editor">
-      <div class="view-head">
-        <div class="row grow">
-          <button class="icon-btn" id="editorBack" aria-label="Volver">
-            <span class="material-symbols-outlined">arrow_back</span>
-          </button>
-          <div class="grow">
-            <h1 class="view-title" id="editorHeading" style="font-size:20px;">Nueva nota</h1>
-          </div>
-          <button class="btn btn--primary" id="editorSaveBtn">Guardar</button>
-        </div>
+      <!-- Fila 1: pestañas activas + breadcrumb de ruta -->
+      <div class="edt-topbar">
+        <button class="icon-btn" id="editorSideBtn" aria-label="Mostrar u ocultar la lista de notas" title="Lista de notas">
+          <span class="material-symbols-outlined">vertical_split</span>
+        </button>
+        <button class="icon-btn" id="editorBack" aria-label="Volver">
+          <span class="material-symbols-outlined">arrow_back</span>
+        </button>
+        <div class="edt-tabs no-scrollbar" id="editorTabs"></div>
+        <button class="icon-btn" id="editorTabNew" aria-label="Nueva nota" title="Nueva nota (+)">
+          <span class="material-symbols-outlined">add</span>
+        </button>
+        <div class="edt-crumb" id="editorCrumb" title="Ruta de la nota"></div>
+        <button class="chip" id="editorImportBtn" title="Importar .md o .pdf">
+          <span class="material-symbols-outlined" style="font-size:15px;">upload_file</span> Importar
+        </button>
+        <input type="file" id="editorImportInput" accept=".md,.markdown,.pdf,text/markdown,application/pdf" multiple hidden>
+        <button class="chip" id="editorExportBtn" title="Exportar nota en Markdown">
+          <span class="material-symbols-outlined" style="font-size:15px;">download</span> .md
+        </button>
+        <button class="chip edt-split-btn" id="editorSplitBtn" title="Dividir pantalla (PC)">
+          <span class="material-symbols-outlined" style="font-size:15px;">splitscreen</span> Split
+        </button>
+        <button class="btn btn--primary btn--sm" id="editorSaveBtn">Guardar</button>
       </div>
-      <div class="card editor-wrap" style="padding:18px;">
-        <input class="editor-title" id="editorTitle" placeholder="Título de la nota…">
-        <div class="editor-meta">
-          <select class="input" id="editorMateria" style="width:auto;">
-            <option value="">Sin materia</option>
-            <option value="VIDA_COTIDIANA">🏠 Vida Cotidiana (Sin materia)</option>
-          </select>
-          <button class="chip" id="editorLinkBtn">[[ Enlazar ]]</button>
-          <button class="chip" id="editorImageBtn">🖼️ Imagen</button>
-          <button class="chip" id="editorPreviewBtn">👁️ Vista previa</button>
-          <input type="file" id="editorImageInput" accept="image/*" multiple hidden>
+
+      <!-- Fila 2: workspace (sidebar + paneles) -->
+      <div class="edt-workspace">
+        <aside class="edt-side" id="editorSide" aria-label="Notas y línea de tiempo">
+          <div class="edt-side-head">
+            <span class="material-symbols-outlined">timeline</span> Notas · Línea de tiempo
+          </div>
+          <div id="editorNotesList" class="edt-notes-list"></div>
+        </aside>
+
+        <!-- Panel A: editor principal -->
+        <div class="edt-main">
+          <div class="card editor-wrap" style="padding:18px;">
+            <input class="editor-title" id="editorTitle" placeholder="Título de la nota…">
+            <div class="editor-meta">
+              <select class="input" id="editorMateria" style="width:auto;">
+                <option value="">Sin materia</option>
+                <option value="VIDA_COTIDIANA">Vida Cotidiana (Sin materia)</option>
+              </select>
+              <button class="chip" id="editorLinkBtn">Tags</button>
+              <button class="chip" id="editorImageBtn">Imagen</button>
+              <button class="chip" id="editorPreviewBtn">Vista previa</button>
+              <input type="file" id="editorImageInput" accept="image/*" multiple hidden>
+            </div>
+            <textarea class="input" id="editorContent" placeholder="Escribe en Markdown… soporta [[Enlaces]], **negrita**, tablas, bloques de código y diagramas ```mermaid" style="min-height:40vh;"></textarea>
+            <div id="editorPreview" class="editor-preview" hidden></div>
+            <div class="attach-row mt-8" id="editorAttachRow"></div>
+            <div class="editor-counter" id="editorCounter">0 palabras · 0 caracteres</div>
+          </div>
         </div>
-        <textarea class="input" id="editorContent" placeholder="Escribe en Markdown… soporta [[Enlaces]] a notas/materias, **negrita**, listas, código…" style="min-height:40vh;"></textarea>
-        <div id="editorPreview" class="editor-preview" hidden></div>
-        <div class="attach-row mt-8" id="editorAttachRow"></div>
+
+        <!-- Panel B: Split view (solo PC ≥1025px) -->
+        <div class="edt-pane-b" id="editorPaneB" hidden>
+          <div class="card editor-wrap" style="padding:16px;height:100%;display:flex;flex-direction:column;">
+            <div class="row" style="gap:8px;margin-bottom:10px;">
+              <b style="font-size:12px;color:var(--violet-bright);letter-spacing:0.06em;">PANEL B</b>
+              <div class="grow"></div>
+              <button class="icon-btn" id="paneBClose" aria-label="Cerrar panel B" title="Cerrar panel B" style="width:30px;height:30px;">
+                <span class="material-symbols-outlined" style="font-size:17px;">close</span>
+              </button>
+            </div>
+            <select class="input" id="paneBSelect" style="margin-bottom:10px;"></select>
+            <input class="editor-title" id="paneBTitle" placeholder="Título (panel B)" style="font-size:18px;">
+            <textarea class="input grow" id="paneBContent" placeholder="Toma apuntes en paralelo…" style="min-height:30vh;flex:1;"></textarea>
+            <div class="row" style="gap:8px;margin-top:10px;align-items:center;">
+              <span class="editor-counter" id="paneBCounter" style="margin:0;">0 palabras · 0 caracteres</span>
+              <div class="grow"></div>
+              <button class="btn btn--primary btn--sm" id="paneBSaveBtn">Guardar</button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -357,15 +411,15 @@
             <span class="material-symbols-outlined">arrow_back</span>
           </button>
           <div>
-            <h1 class="view-title">🧠 Bóveda IA</h1>
-            <p class="view-sub">Pregunta sobre tus apuntes — con contexto de tu base de datos.</p>
+            <h1 class="view-title">Bóveda </h1>
+            <p class="view-sub">Pregunta sobre tus apuntes.</p>
           </div>
         </div>
       </div>
       <div id="vaultChat" class="vault-chat">
         <div class="empty" id="vaultEmpty">
           <span class="material-symbols-outlined">psychology</span>
-          <p>Pregunta lo que quieras sobre tus apuntes, tareas y materias.<br>Ej.: <i>"¿Qué temas veo en Cálculo?"</i></p>
+          <p>Pregunta lo que desees.<br>Ej.: <i>Recordatorio para el martes a la 9pm</i></p>
           <div class="vault-context-chips" style="justify-content:center;">
             <button class="chip" data-q="¿Qué tengo pendiente esta semana?">Pendientes de la semana</button>
             <button class="chip" data-q="Hazme un plan de estudio para esta semana con mis tareas y exámenes.">Plan de estudio</button>
@@ -405,22 +459,22 @@
           <h3><span class="material-symbols-outlined">menu_book</span> Materias y Horario</h3>
           <p class="hint" style="margin:0 0 12px;">Administra tus cursos (código, profesor, color) y construye tu horario fijo de clases del semestre.</p>
           <div class="row">
-            <button class="btn btn--primary" data-action="materias">📚 Gestionar Materias</button>
-            <button class="btn btn--ghost" data-goto="timetable">Ver Horario</button>
+            <button class="btn btn--primary" data-action="materias"> Materias</button>
+            <button class="btn btn--ghost" data-goto="timetable">Horario</button>
           </div>
         </div>
 
         <div class="card settings-group">
-          <h3><span class="material-symbols-outlined">auto_awesome</span> Gemini AI</h3>
+          <h3><span class="material-symbols-outlined">auto_awesome</span> Gemini API</h3>
           <div class="field">
             <label for="setGeminiKey">API Key</label>
-            <input class="input" type="password" id="setGeminiKey" placeholder="AIza…" autocomplete="off">
+            <input class="input" type="password" id="setGeminiKey" placeholder="API…" autocomplete="off">
             <p class="hint">Consíguela en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Se guarda solo en tu dispositivo.</p>
           </div>
           <div class="field">
             <label for="setGeminiModel">Modelo</label>
             <select class="input" id="setGeminiModel">
-              <option value="gemini-3.5-flash" selected>gemini-3.5-flash (recomendado)</option>
+              <option value="gemini-3.5-flash" selected>gemini-3.5-flash (default)</option>
               <option value="gemini-2.5-flash">gemini-2.5-flash</option>
               <option value="gemini-2.0-flash">gemini-2.0-flash</option>
               <option value="gemini-flash-latest">gemini-flash-latest</option>
@@ -450,8 +504,8 @@
           <h3><span class="material-symbols-outlined">notifications_active</span> Notificaciones</h3>
           <div class="row row--between">
             <div class="grow">
-              <b style="font-size:13px;">Alertas de tareas y clases</b>
-              <p class="hint" style="margin:2px 0 0;">Te aviso 30 minutos antes del vencimiento.</p>
+              <b style="font-size:13px;">Alertas de los eventos</b>
+              <p class="hint" style="margin:2px 0 0;">Aviso antes del vencimiento.</p>
             </div>
             <label class="switch">
               <input type="checkbox" id="setNotifications">
@@ -464,24 +518,25 @@
         <div class="card settings-group">
           <h3><span class="material-symbols-outlined">person</span> Perfil</h3>
           <div class="field">
-            <label for="setUserName">Tu nombre</label>
+            <label for="setUserName">Nombre</label>
             <input class="input" id="setUserName" placeholder="Estudiante">
           </div>
           <div class="row mt-8">
-            <button class="btn btn--primary" id="saveSettingsBtn">Guardar ajustes</button>
+            <button class="btn btn--primary" id="saveSettingsBtn">Guardar</button>
           </div>
         </div>
 
         <div class="card settings-group">
-          <h3><span class="material-symbols-outlined">database</span> Datos locales</h3>
+          <h3><span class="material-symbols-outlined">database</span> Datos del dispositivo</h3>
           <div class="row">
-            <button class="btn btn--ghost" id="exportBtn">⬇️ Exportar JSON</button>
-            <button class="btn btn--danger" id="wipeBtn">🗑️ Borrar todo</button>
+            <button class="btn btn--ghost" id="exportBtn">Exportar JSON</button>
+            <button class="btn btn--ghost" id="notesBackupBtn">Respaldo de notas (.json)</button>
+            <button class="btn btn--danger" id="wipeBtn">Borrar todo</button>
           </div>
-          <p class="hint mt-8">La exportación incluye notas, tareas, materias, clases del horario y adjuntos en base64.</p>
+          <p class="hint mt-8">La exportación completa incluye notas, tareas, materias, clases del horario y adjuntos en base64. «Respaldo de notas» genera un archivo portátil solo con tus notas (título, materia, contenido y fechas).</p>
         </div>
 
-        <p class="hint" style="text-align:center;">Aura Life Dashboard v2.0 · Liquid Glass · Offline-first PWA</p>
+        <p class="hint" style="text-align:center;">Aura Life Dashboard v2.3 · Alemniscate · Offline-support</p>
       </div>
     </section>
   </main>
@@ -489,11 +544,10 @@
   <!-- ================= Floating Action Dock (Botones A y B) ================= -->
   <div class="action-dock">
     <button class="btn btn--primary" id="btnAddEntry">
-      <span class="material-symbols-outlined">add</span> Ingresar
-      <span class="mic-bubble"><span class="material-symbols-outlined">mic</span></span>
+      <span class="material-symbols-outlined">add</span> Crear
     </button>
     <button class="btn btn--cyan" id="btnAskVault">
-      <span class="material-symbols-outlined">psychology</span> Preguntar a la Bóveda
+      <span class="material-symbols-outlined">antigravity</span> Preguntar
     </button>
   </div>
 
@@ -502,28 +556,28 @@
     <div class="nav-hub">
       <button class="nav-item active" data-view="dashboard">
         <span class="material-symbols-outlined">space_dashboard</span>
-        Inicio
+        
       </button>
       <button class="nav-item" data-view="calendar">
         <span class="material-symbols-outlined">calendar_month</span>
-        Agenda
+       
       </button>
       <button class="nav-item" data-view="tasks">
         <span class="material-symbols-outlined">checklist</span>
-        Tareas
+        
         <span class="nav-badge" id="tasksBadge" hidden>0</span>
       </button>
       <button class="nav-item" data-view="notes">
         <span class="material-symbols-outlined">stylus_note</span>
-        Notas
+       
       </button>
       <button class="nav-item" data-view="timetable">
         <span class="material-symbols-outlined">schedule</span>
-        Horario
+       
       </button>
       <button class="nav-item" data-action="materias">
         <span class="material-symbols-outlined">menu_book</span>
-        Materias
+       
       </button>
     </div>
   </nav>
@@ -543,15 +597,15 @@
       </div>
       <div class="modal-body">
         <div class="segmented">
-          <button id="capModeManual" class="active">✍️ Manual</button>
-          <button id="capModeVoice">🎙️ Voz + IA</button>
+          <button id="capModeManual" class="active"> Manual</button>
+          <button id="capModeVoice"> Voz</button>
         </div>
 
         <!-- Manual form -->
         <div id="capManual" class="mode-note-grid">
           <div class="segmented" id="capTypeSeg">
-            <button data-type="tarea" class="active">✅ Tarea / Examen</button>
-            <button data-type="nota">🗒️ Nota</button>
+            <button data-type="tarea" class="active"> Tarea / Examen</button>
+            <button data-type="nota"> Nota</button>
           </div>
           <div class="field">
             <label for="capTitulo">Título</label>
@@ -581,12 +635,12 @@
             <span class="material-symbols-outlined">mic</span>
           </button>
           <div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-          <div class="voice-transcript" id="voiceTranscript">Toca el orbe y dicta.<br>Ej: «Entrega del laboratorio de física para el viernes a las 5»</div>
-          <div class="voice-hint">La transcripción se enviará a Gemini para extraer tipo, materia, título y fecha.</div>
+          <div class="voice-transcript" id="voiceTranscript">Presionar<br>Ej: «Pon unrecordatorio para el martes a la 8 pm»</div>
+          <div class="voice-hint">La transcripción se enviará a Gemini.</div>
           <div id="parsePreview" class="parse-preview" hidden></div>
           <div class="row" style="justify-content:center;">
             <button class="btn btn--ghost btn--sm" id="voiceCancelBtn">Cancelar</button>
-            <button class="btn btn--primary" id="voiceSaveBtn" disabled>Guardar resultado</button>
+            <button class="btn btn--primary" id="voiceSaveBtn" disabled>Enviar </button>
           </div>
         </div>
       </div>
@@ -623,7 +677,7 @@
     <div class="modal-panel card card--float">
       <div class="modal-head">
         <div>
-          <h2 id="materiaModalTitle">Gestionar Materias</h2>
+          <h2 id="materiaModalTitle"> Materias</h2>
           <p id="materiaModalSub">Cursos con código, profesor y color — se poblan en notas, tareas y horario.</p>
         </div>
         <button class="icon-btn" data-close aria-label="Cerrar">
@@ -633,8 +687,8 @@
       <div class="modal-body">
         <div class="card materia-form">
           <div class="row row--between">
-            <b id="materiaFormTitle" style="font-size:13px;">➕ Nueva materia</b>
-            <button class="chip" id="materiaCancelEditBtn" hidden>✕ Cancelar edición</button>
+            <b id="materiaFormTitle" style="font-size:13px;">+ materia</b>
+            <button class="chip" id="materiaCancelEditBtn" hidden>✕ Cancelar</button>
           </div>
           <div class="inline-fields">
             <div class="field">
@@ -648,15 +702,19 @@
           </div>
           <div class="inline-fields">
             <div class="field">
-              <label for="materiaProfesor">Profesor</label>
-              <input class="input" id="materiaProfesor" placeholder="Ej: Dra. Ríos">
+              <label for="materiaProfesorNombre">Nombre del profesor</label>
+              <input class="input" id="materiaProfesorNombre" placeholder="Ej: Dra. Sofía Ríos">
             </div>
             <div class="field">
-              <label for="materiaColor">Color distintivo</label>
+              <label for="materiaColor">Color</label>
               <input type="color" class="input-color" id="materiaColor" value="#8b5cf6">
             </div>
           </div>
-          <button class="btn btn--primary" id="materiaAddBtn">Añadir materia</button>
+          <div class="field">
+            <label for="materiaProfesorDescripcion">Descripción del profesor</label>
+            <textarea class="input" id="materiaProfesorDescripcion" rows="2" placeholder="Ej: Tutora de la materia · consultas jueves 10–12 h · oficina 3B"></textarea>
+          </div>
+          <button class="btn btn--primary" id="materiaAddBtn">+ materia</button>
         </div>
         <div id="materiasList" class="list"></div>
         <p class="hint">Al eliminar una materia, sus tareas y notas no se borran. Eliminar una clase del horario no afecta la materia.</p>
@@ -682,7 +740,7 @@
           <label for="clsMateria">Materia</label>
           <div class="row">
             <select class="input grow" id="clsMateria"></select>
-            <button class="chip" data-action="materias" title="Gestionar materias">📚</button>
+            <button class="chip" data-action="materias" title="Gestionar materias"></button>
           </div>
         </div>
         <div class="field">
@@ -714,7 +772,7 @@
       <div class="modal-foot">
         <button class="btn btn--danger" id="clsDeleteBtn" hidden>Eliminar</button>
         <button class="btn btn--ghost" data-close>Cancelar</button>
-        <button class="btn btn--primary" id="clsSaveBtn">Guardar clase</button>
+        <button class="btn btn--primary" id="clsSaveBtn">Guardar</button>
       </div>
     </div>
   </div>
@@ -728,7 +786,7 @@
           <span class="material-symbols-outlined">mic</span>
         </button>
         <div class="wave on"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-        <div class="voice-transcript" id="vaultVoiceTranscript">Escuchando… toca el orbe para detener.</div>
+        <div class="voice-transcript" id="vaultVoiceTranscript">Escuchando...</div>
       </div>
     </div>
   </div>
@@ -739,6 +797,7 @@
   <script src="js/settings.js"></script>
   <script src="js/db.js"></script>
   <script src="js/store.js"></script>
+  <script src="js/exporter.js"></script>
   <script src="js/gemini.js"></script>
   <script src="js/calendar.js"></script>
   <script src="js/editor.js"></script>

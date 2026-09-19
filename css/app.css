@@ -115,9 +115,7 @@
   transform: translateY(-50%) translateX(-6px);
   padding: 7px 12px;
   border-radius: var(--r-sm);
-  background: var(--glass-2);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+  background: rgba(16, 16, 21, 0.88);   /* tooltip opaco: no necesita blur */
   border: 1px solid var(--rim-strong);
   box-shadow: var(--shadow-glass);
   color: var(--text);
@@ -248,8 +246,7 @@ html.side-rail .side-item::after { display: block; }
   gap: 6px;
   border-radius: var(--r-lg);
   background: var(--glass-1);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
+  transform: translateZ(0);   /* sin blur directo: fondo rgba heredado del canvas (perf móvil) */
   border: 1px solid var(--rim);
   color: var(--text-2);
   position: relative;
@@ -460,3 +457,25 @@ html.side-rail .side-foot { border-top: 1px solid var(--rim-faint); }
 
 /* ---------- Vault height con header de 48px ---------- */
 .vault-view { height: calc(100dvh - 64px - env(safe-area-inset-top, 0px) - var(--fab-zone)); }
+
+/* ============================================================
+   OCULTACIÓN DE REDUNDANCIAS — cuando hay una ventana flotante
+   (modal) o el editor está activo, se ocultan los dos botones
+   inferiores ("Ingresar" / "Preguntar a la Bóveda") y la nav
+   inferior para no saturar la pantalla en móvil.
+   ============================================================ */
+body.modal-open .action-dock,
+body.editor-focus .action-dock,
+body.modal-open .nav-hub-wrap,
+body.editor-focus .nav-hub-wrap {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(14px);
+}
+.action-dock, .nav-hub-wrap {
+  transition: opacity var(--t-med) var(--ease-out), transform var(--t-med) var(--ease-out);
+}
+/* El editor también reserva su zona inferior (contador visible sin docks) */
+body.editor-focus .app-main {
+  padding-bottom: calc(var(--nav-h) + 20px);
+}

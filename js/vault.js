@@ -52,17 +52,26 @@ const Vault = (() => {
     document.body.style.overflow = 'hidden';
     const tr = $('vaultVoiceTranscript');
 
+    /* FIX Voz: prioriza el resultado FINAL (isFinal) y envía solo texto claro. */
+    let finalText = '';
     recognition.onresult = e => {
       tr.textContent = '“' + [...e.results].map(r => r[0].transcript).join('') + '”';
+      for (const res of e.results) {
+        if (res.isFinal && res[0].transcript.trim()) finalText = res[0].transcript.trim();
+      }
     };
     recognition.onend = () => {
       setTimeout(() => {
         modal.classList.remove('open');
         if (!document.querySelector('.modal-root.open')) document.body.style.overflow = '';
-        const text = tr.textContent.replace(/^“|”$/g, '').trim();
-        if (text && text !== 'Escuchando… toca el orbe para detener.') {
+        const raw = tr.textContent.replace(/^“|”$/g, '').trim();
+        const text = finalText || raw;
+        const placeholder = !text || /^escuchando/i.test(text);
+        if (!placeholder) {
           $('vaultInput').value = text;
-          send();
+          send();                            // envío automático a la Bóveda
+        } else {
+          UI.toast('El dictado no capturó texto claro.', 'err', 4000);
         }
       }, 500);
     };
@@ -130,6 +139,8 @@ const Vault = (() => {
       </div>
       <div class="msg-bubble">${role === 'user' ? UI.escapeHTML(text) : UI.mdToHTML(text)}</div>`;
     chat.appendChild(wrap);
+    // Diagramas ```mermaid dentro de las respuestas de la IA
+    if (role !== 'user') UI.renderCodeBlocks(wrap.querySelector('.msg-bubble'));
     chat.scrollTop = chat.scrollHeight;
     return wrap;
   }

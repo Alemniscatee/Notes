@@ -401,6 +401,336 @@
 #vaultInput::placeholder { color: var(--text-3); }
 .vault-context-chips { display: flex; gap: 8px; overflow-x: auto; padding: 10px 2px 0; }
 
+  /* ============================================================
+     EDITOR WORKSPACE (tipo Obsidian) — pantalla completa al editar
+     una nota existente, con sidebar de notas + línea de tiempo.
+     ============================================================ */
+  .edt-workspace { display: flex; gap: 14px; align-items: flex-start; min-height: 60vh; }
+  .edt-side {
+    display: none;
+    flex-direction: column;
+    width: 264px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 92px;
+    max-height: calc(100dvh - 190px);
+    border: 1px solid var(--rim);
+    border-radius: var(--r-lg);
+    background: var(--glass-1);
+    overflow: hidden;
+    transform: translateZ(0);                    /* capa propia: scroll a 60fps */
+  }
+  .edt-side-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--violet-bright);
+    border-bottom: 1px solid var(--rim-faint);
+  }
+  .edt-side-head .material-symbols-outlined { font-size: 16px; }
+  .edt-notes-list {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 8px 10px 14px;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Línea de tiempo: conector vertical entre notas cronológicas */
+  .edt-notes-list { position: relative; }
+  .edt-notes-list::before {
+    content: '';
+    position: absolute;
+    left: 21px;
+    top: 14px; bottom: 14px;
+    width: 1.5px;
+    background: linear-gradient(180deg, rgba(139,92,246,0.45), rgba(34,211,238,0.25), transparent);
+    pointer-events: none;
+  }
+  .edt-tl-date {
+    position: relative;
+    z-index: 1;
+    margin: 12px 0 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .edt-tl-date:first-child { margin-top: 4px; }
+  .edt-tl-item {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 8px 8px 10px;
+    margin: 2px 0;
+    border: 1px solid transparent;
+    border-radius: var(--r-md);
+    background: var(--glass-input);
+    text-align: left;
+    transition: background-color var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), transform var(--t-fast) var(--ease-out);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .edt-tl-item:hover { background: var(--violet-soft); border-color: rgba(139,92,246,0.3); transform: translateX(2px); }
+  .edt-tl-item.current {
+    border-color: rgba(139,92,246,0.5);
+    background: var(--violet-soft);
+    box-shadow: var(--glow-violet);
+  }
+  .edt-tl-dot {
+    width: 9px; height: 9px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+  }
+  .edt-tl-body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .edt-tl-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .edt-tl-time { font-size: 10px; color: var(--text-3); font-family: ui-monospace, monospace; }
+
+  /* Botón sidebar + modo expansivo (solo al editar nota existente) */
+  #editorSideBtn { display: none; }
+  .edt-main { flex: 1; min-width: 0; }
+  .edt-main .editor-wrap { max-width: none; transition: max-width var(--t-med) var(--ease-out); }
+  #view-editor.mode-existing #editorSideBtn { display: inline-flex; }
+  #view-editor.mode-existing .edt-main .editor-wrap { max-width: 780px; }
+  @media (min-width: 1000px) {
+    #view-editor.mode-existing.side-open .edt-side { display: flex; animation: view-in 0.35s var(--ease-out); }
+  }
+  /* Móvil/tablet: el workspace se apila y la sidebar se abre como panel superior desplegable */
+  @media (max-width: 999px) {
+    .edt-workspace { flex-direction: column; }
+    #view-editor.mode-existing.side-open .edt-side {
+      display: flex;
+      position: static;
+      width: 100%;
+      max-height: 44dvh;
+      animation: view-in 0.35s var(--ease-out);
+    }
+  }
+
+  /* ============================================================
+     EDITOR TOPBAR — pestañas activas + breadcrumb (estilo Obsidian)
+     ============================================================ */
+  .edt-topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+  .edt-tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    padding: 2px;
+  }
+  .edt-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    max-width: 210px;
+    padding: 6px 8px 6px 12px;
+    border: 1px solid var(--rim-faint);
+    border-radius: var(--r-full);
+    background: var(--glass-input);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transform: translateZ(0);
+    transition: background-color var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+  }
+  .edt-tab:hover { border-color: var(--rim-strong); color: var(--text); }
+  .edt-tab.active {
+    background: var(--violet-soft);
+    border-color: rgba(139, 92, 246, 0.45);
+    color: var(--violet-bright);
+    box-shadow: var(--glow-violet);
+  }
+  .edt-tab-title { overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+  .edt-tab-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid var(--rim-strong);
+    flex-shrink: 0;
+  }
+  .edt-tab-dot.dirty { background: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+  .edt-tab-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px; height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-3);
+  }
+  .edt-tab-x:hover { background: var(--alert-soft); color: var(--alert); }
+  .edt-tab-x .material-symbols-outlined { font-size: 13px; }
+
+  /* Breadcrumb de ruta: NOTAS / NombreNota (clic → vista Notas) */
+  .edt-crumb {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    padding: 6px 10px;
+    border-radius: var(--r-full);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--text-3);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: background-color var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+  }
+  .edt-crumb:hover { background: var(--glass-input); color: var(--text-2); }
+  .edt-crumb b { color: var(--violet-bright); overflow: hidden; text-overflow: ellipsis; }
+
+  /* Split view: solo PC ≥1025px; en móvil el botón no existe y el
+     panel B se fuerza fuera de pantalla aunque quede activo. */
+  .edt-split-btn { display: none; }
+  @media (min-width: 1025px) {
+    .edt-split-btn { display: inline-flex; }
+    #view-editor.split-open .edt-workspace { flex-direction: row; }
+    #view-editor.split-open .edt-main { flex: 1 1 50%; min-width: 0; }
+    #view-editor.split-open .edt-main .editor-wrap { max-width: none; }
+    #view-editor.split-open .edt-pane-b { display: block; flex: 1 1 50%; min-width: 0; }
+  }
+  @media (max-width: 1024px) {
+    .edt-pane-b { display: none !important; }
+  }
+
+  /* Diagramas Mermaid renderizados en la vista previa */
+  .mermaid-box {
+    display: flex;
+    justify-content: center;
+    padding: 14px;
+    margin: 10px 0;
+    border: 1px solid var(--rim);
+    border-radius: var(--r-md);
+    background: var(--glass-input);
+    overflow-x: auto;
+  }
+  .mermaid-box svg { max-width: 100%; height: auto; }
+  .mermaid-error { border-color: rgba(244, 63, 94, 0.35); }
+  .mermaid-error code { color: var(--alert); white-space: pre-wrap; }
+
+  /* Contador discreto de palabras/caracteres del editor */
+  .editor-counter {
+    margin-top: 10px;
+    text-align: right;
+    font-size: 10.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    color: var(--text-3);
+    font-family: ui-monospace, monospace;
+    user-select: none;
+  }
+
+  /* Descripción del profesor en la tarjeta de materia */
+  .materia-desc {
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--text-3);
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
+
+  /* ============================================================
+     PERF MÓVIL — Liquid Glass sin cuello de botella gráfico
+     ============================================================ */
+  /* Fondos semitransparentes optimizados (rgba/hsla) en lugar de
+     backdrop-filter en tarjetas de listas desplegables. El blur se
+     conserva SOLO en modales, header y nav principal. */
+  .task-row, .note-card, .timeline-item, .materia-row,
+  .edt-tl-item, .week-day, .tt-event {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .task-row     { background: hsla(240, 12%, 16%, 0.62); }
+  .note-card    { background: hsla(240, 12%, 15%, 0.60); }
+  .timeline-item{ background: hsla(240, 12%, 16%, 0.55); }
+  .materia-row  { background: hsla(240, 12%, 16%, 0.62); }
+  .week-day     { background: hsla(240, 12%, 15%, 0.60); }
+  html.light .task-row, html.light .note-card, html.light .materia-row,
+  html.light .week-day { background: hsla(0, 0%, 100%, 0.72); }
+  html.light .timeline-item { background: hsla(0, 0%, 100%, 0.66); }
+
+  /* Aceleración por hardware en listas/tarjetas: scroll a 60fps */
+  .note-card, .task-row, .cal-cell, .timeline-item,
+  .materia-row, .week-day, .edt-tl-item {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  /* ============================================================
+     SCROLL TÁCTIL — Calendario y Horario en móvil
+     ============================================================ */
+  /* Calendario: deslizable en ambos ejes sin recortar días; snap suave */
+  #calGrid, #calDow {
+    overflow-x: auto;
+    overflow-y: hidden;
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+  #calGrid::-webkit-scrollbar, #calDow::-webkit-scrollbar { display: none; }
+  #calGrid { padding-bottom: 6px; margin-bottom: -6px; }
+  #calGrid .cal-cell, #calDow .cal-dow {
+    scroll-snap-align: start;
+    min-width: 44px;
+  }
+  /* Snap de página al deslizar entre "semanas" horizontales del mes */
+  #calGrid .cal-cell:nth-child(7n + 1) { scroll-snap-align: start; }
+  /* Hoy y seleccionado siempre visibles al re-renderizar */
+  #calGrid .cal-cell.today,
+  #calGrid .cal-cell.selected { scroll-snap-align: center; }
+
+  /* Horario académico: rejilla arrastrable fluida sin recortes */
+  .tt-card {
+    overflow-x: auto;
+    overflow-y: hidden;
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+  .tt-grid { touch-action: pan-x pan-y; }
+  /* Móvil: columnas de día más anchas para poder leer/arrastrar cómodo */
+  @media (max-width: 720px) {
+    .tt-grid { min-width: 660px; }
+  }
+
 /* Typing indicator */
 .typing-dots { display: inline-flex; gap: 5px; padding: 4px 2px; }
 .typing-dots i {

@@ -5,9 +5,8 @@
 /* ---------- Glass card tiers (liquid glass) ---------- */
 .card {
   position: relative;
-  background: var(--glass-1);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+  background: var(--glass-1);   /* sin backdrop-filter: fondo rgba optimizado (perf móvil) */
+  transform: translateZ(0);     /* capa GPU propia: scroll 60fps */
   border: 1px solid var(--rim);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-glass);
@@ -231,9 +230,7 @@ html.light .card::before {
 }
 .input, textarea.input, select.input {
   width: 100%;
-  background: var(--glass-input);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+  background: var(--glass-input);   /* sin blur: los inputs heredan el desenfoque del modal/header contenedor */
   border: 1px solid var(--rim);
   border-radius: var(--r-md);
   padding: 11px 14px;

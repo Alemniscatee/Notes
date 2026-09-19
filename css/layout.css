@@ -20,9 +20,7 @@
   justify-content: space-between;
   gap: 10px;
   pointer-events: auto;
-  background: var(--glass-2);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+  background: var(--glass-2);   /* sin blur: mismo tono sobre canvas de orbs (perf) */
   border: 1px solid var(--rim);
   border-radius: var(--r-full);
   box-shadow: var(--shadow-glass), inset 0 1px 0 rgba(255,255,255,0.08);
@@ -39,8 +37,6 @@
   padding: 0 12px;
   border-radius: var(--r-full);
   background: var(--glass-1);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
   border: 1px solid var(--rim);
   font-size: 11px;
   font-weight: 700;
@@ -369,7 +365,7 @@ html.light #themeToggle .icon-moon { display: none; }
   padding: 0 16px;
 }
 .action-dock .btn { pointer-events: auto; height: 48px; box-shadow: 0 12px 32px -8px rgba(0,0,0,0.55); }
-#btnAskVault { -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+#btnAskVault { background: rgba(16, 16, 21, 0.55); }   /* sin blur: fondo rgba optimizado */
 #btnAddEntry { padding: 0 14px; }
 
 /* Voice mini pulse inside primary action */

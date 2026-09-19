@@ -5,7 +5,7 @@
    - Gemini/API: network-only (no cacheamos respuestas privadas)
    ============================================================ */
 
-const VERSION = 'aura-v2.0.0';
+const VERSION = 'aura-v2.2.0';
 const SHELL_CACHE = `${VERSION}-shell`;
 const CDN_CACHE = `${VERSION}-cdn`;
 
@@ -20,6 +20,7 @@ const SHELL_ASSETS = [
   './css/app.css',
   './js/db.js',
   './js/store.js',
+  './js/exporter.js',
   './js/settings.js',
   './js/gemini.js',
   './js/ui.js',
@@ -42,6 +43,9 @@ const CDN_ASSETS = [
   'https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.min.js',
   'https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.find.min.js',
   'https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js',
+  'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js',
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
   'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap',
   'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200',
   'https://fonts.gstatic.com/s/plusjakartasans/v8/LDIbaomQNQcsA88c7O9yZ4KMCoOg4IA6-91aHEjcWuA_qU79TAI.woff2',
