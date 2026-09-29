@@ -2,7 +2,7 @@
    AURA — Layout: header, nav hub, floating actions, views grid
    ============================================================ */
 
-/* Header flotante ultra-delgado: pill-bar glass desacoplada del canvas */
+/* Header flotante ultra-delgado: pill-bar desacoplada del canvas */
 .app-header {
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -11,7 +11,7 @@
   pointer-events: none;
 }
 .header-inner {
-  max-width: 1200px;
+  max-width: 850px;
   margin: 0 auto;
   height: 46px;
   padding: 0 8px;
@@ -20,70 +20,15 @@
   justify-content: space-between;
   gap: 10px;
   pointer-events: auto;
-  background: var(--glass-2);   /* sin blur: mismo tono sobre canvas de orbs (perf) */
+  background: var(--glass-2);
   border: 1px solid var(--rim);
   border-radius: var(--r-full);
-  box-shadow: var(--shadow-glass), inset 0 1px 0 rgba(255,255,255,0.08);
-  transition: background-color var(--t-ui) var(--ease-standard), border-color var(--t-ui) var(--ease-standard), box-shadow var(--t-ui) var(--ease-standard), max-width var(--t-slow) var(--ease-inout);
+  box-shadow: var(--shadow-glass);
+  transition: background-color var(--t-ui) var(--ease-standard), border-color var(--t-ui) var(--ease-standard), box-shadow var(--t-ui) var(--ease-standard);
 }
 .header-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 
-/* ---------- Cloud sync status chip (🟢/🟡/🔴) ---------- */
-.cloud-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 36px;
-  padding: 0 12px;
-  border-radius: var(--r-full);
-  background: var(--glass-1);
-  border: 1px solid var(--rim);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--text-2);
-  white-space: nowrap;
-  cursor: pointer;
-  margin: 0 auto;              /* centrada entre hamburguesa y acciones */
-  -webkit-tap-highlight-color: transparent;
-  transition: all var(--t-ui) var(--ease-standard);
-}
-.cloud-chip:hover { border-color: var(--rim-strong); color: var(--text); }
-.cloud-chip:active { transform: scale(0.95); }
-.cloud-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: var(--text-3);
-  flex-shrink: 0;
-  transition: all var(--t-fast) var(--ease-out);
-}
-.cloud-chip--cloud { color: var(--ok); border-color: rgba(16, 185, 129, 0.35); }
-.cloud-chip--cloud .cloud-dot {
-  background: var(--ok);
-  box-shadow: 0 0 10px var(--ok);
-  animation: cloud-pulse 2.4s var(--ease-inout) infinite;
-}
-.cloud-chip--local { color: var(--warn); border-color: rgba(245, 158, 11, 0.35); }
-.cloud-chip--local .cloud-dot { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
-.cloud-chip--error { color: var(--alert); border-color: rgba(244, 63, 94, 0.4); }
-.cloud-chip--error .cloud-dot { background: var(--alert); box-shadow: 0 0 10px var(--alert); animation: cloud-pulse 1.2s var(--ease-inout) infinite; }
-.cloud-chip--syncing { color: var(--cyan); border-color: rgba(34, 211, 238, 0.35); }
-.cloud-chip--syncing .cloud-dot { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); animation: cloud-pulse 0.9s var(--ease-inout) infinite; }
-@keyframes cloud-pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.35; }
-}
-@media (max-width: 420px) { .cloud-chip span:not(.cloud-dot) { max-width: 110px; overflow: hidden; text-overflow: ellipsis; } }
-.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-
-/* Sync status pill in header */
-.sync-pill { cursor: pointer; }
-.sync-pill .spin { animation: spin 1.2s linear infinite; display: none; }
-.sync-pill.syncing .spin { display: inline-block; }
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.header-actions { display: flex; align-items: center; gap: 4px; }
+  
 /* Botones de icono: 44x44px mínimo (área táctil accesible) */
 .icon-btn {
   width: 44px; height: 44px;
@@ -114,13 +59,10 @@ html.light #themeToggle .icon-moon { display: none; }
 
 /* ---------- Main (respeta la pill-bar flotante de 46px + 10px de aire) ---------- */
 .app-main {
-  max-width: 1200px;
+  max-width: 850px;
   margin: 0 auto;
   padding: calc(56px + env(safe-area-inset-top, 0px) + 16px) 16px var(--fab-zone);
   min-height: 100vh;
-}
-@media (min-width: 1100px) {
-  .app-main { padding-top: calc(56px + env(safe-area-inset-top, 0px) + 28px); }
 }
 
 /* ============================================================
@@ -159,9 +101,8 @@ html.light #themeToggle .icon-moon { display: none; }
   z-index: 2;
 }
 .tt-dow.today {
-  color: var(--cyan);
-  text-shadow: 0 0 10px var(--cyan);
-  background: var(--cyan-soft);
+  color: var(--accent-color);
+  background: var(--accent-soft);
 }
 .tt-time {
   grid-column: 1;
@@ -186,7 +127,7 @@ html.light #themeToggle .icon-moon { display: none; }
   transition: background-color var(--t-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-.tt-cell:hover { background: rgba(139, 92, 246, 0.12); }
+.tt-cell:hover { background: var(--accent-soft); }
 .tt-event {
   position: absolute;
   z-index: 4;
@@ -194,15 +135,15 @@ html.light #themeToggle .icon-moon { display: none; }
   padding: 4px 8px;
   overflow: hidden;
   cursor: pointer;
-  background: color-mix(in srgb, var(--ev-color, var(--violet)) 18%, var(--glass-2));
-  border: 1px solid color-mix(in srgb, var(--ev-color, var(--violet)) 55%, transparent);
-  border-left: 3px solid var(--ev-color, var(--violet));
-  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.5), 0 0 10px color-mix(in srgb, var(--ev-color, var(--violet)) 25%, transparent);
+  background: color-mix(in srgb, var(--ev-color, var(--accent-color)) 14%, var(--bg-elev));
+  border: 1px solid color-mix(in srgb, var(--ev-color, var(--accent-color)) 40%, transparent);
+  border-left: 3px solid var(--ev-color, var(--accent-color));
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.4);
   transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
 }
 .tt-event:hover {
   transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.55), 0 0 16px color-mix(in srgb, var(--ev-color, var(--violet)) 45%, transparent);
+  box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.45);
 }
 .tt-event:active { transform: scale(0.97); }
 .tt-ev-time {
@@ -258,14 +199,14 @@ html.light #themeToggle .icon-moon { display: none; }
 }
 
 .view { display: none; }
-.view.active { display: block; animation: view-in 0.55s var(--ease-out); }
+.view.active { display: block; animation: view-in 0.4s var(--ease-out); }
 /* FIX: transform/filter en la animación crea un containing block y
    ancla mal los elementos position:fixed (p.ej. Guardar del editor).
    El editor entra sin animación; el FAB ancla a la ventana siempre. */
 .view.active#view-editor { animation: none; }
 @keyframes view-in {
-  from { opacity: 0; transform: translateY(14px) scale(0.985); filter: blur(6px); }
-  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* Entrada escalonada de hijos (dash-grid, quick-grid, listas) */
@@ -293,17 +234,14 @@ html.light #themeToggle .icon-moon { display: none; }
 .view.active .settings-list > *:nth-child(4) { animation-delay: 230ms; }
 .view.active .settings-list > *:nth-child(5) { animation-delay: 290ms; }
 @keyframes rise-in {
-  from { opacity: 0; transform: translateY(16px) scale(0.97); filter: blur(4px); }
-  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .view-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
 .view-title { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
 .view-title .accent {
-  background: linear-gradient(120deg, var(--violet-bright), var(--cyan));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--accent-color);
 }
 .view-sub { margin: 4px 0 0; font-size: 12px; color: var(--text-3); }
 
@@ -368,8 +306,8 @@ html.light #themeToggle .icon-moon { display: none; }
   pointer-events: none;
   padding: 0 16px;
 }
-.action-dock .btn { pointer-events: auto; height: 48px; box-shadow: 0 12px 32px -8px rgba(0,0,0,0.55); }
-#btnAskVault { background: rgba(16, 16, 21, 0.55); }   /* sin blur: fondo rgba optimizado */
+.action-dock .btn { pointer-events: auto; height: 48px; box-shadow: var(--shadow-float); }
+#btnAskVault { background: var(--glass-2); color: var(--text-2); }
 #btnAddEntry { padding: 0 14px; }
 
 /* Voice mini pulse inside primary action */
@@ -406,10 +344,10 @@ html.light #themeToggle .icon-moon { display: none; }
   padding: 0 10px;
   border-radius: var(--r-full);
   background: var(--glass-3);
-  -webkit-backdrop-filter: var(--glass-blur-strong);
-  backdrop-filter: var(--glass-blur-strong);
-  border: 1px solid var(--rim-strong);
-  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.08);
+  border: 1px solid var(--rim);
+  box-shadow: var(--shadow-float);
+  will-change: transform;
+  transform: translateZ(0);
 }
 .nav-item {
   position: relative;
@@ -432,7 +370,7 @@ html.light #themeToggle .icon-moon { display: none; }
 }
 .nav-item .material-symbols-outlined { font-size: 22px; transition: transform var(--t-med) var(--ease-spring); }
 .nav-item:active { transform: scale(0.9); }
-.nav-item.active { color: var(--violet-bright); }
+.nav-item.active { color: var(--accent-color); }
 .nav-item.active .material-symbols-outlined { transform: translateY(-2px) scale(1.08); }
 .nav-item::after {
   /* upward light projection dot */
@@ -441,8 +379,7 @@ html.light #themeToggle .icon-moon { display: none; }
   bottom: 6px;
   width: 4px; height: 4px;
   border-radius: 50%;
-  background: var(--cyan);
-  box-shadow: 0 0 8px var(--cyan);
+  background: var(--accent-color);
   opacity: 0;
   transform: scale(0);
   transition: all var(--t-med) var(--ease-spring);
@@ -461,7 +398,6 @@ html.light #themeToggle .icon-moon { display: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 8px rgba(244, 63, 94, 0.6);
 }
 
 /* ---------- Responsive: desktop nav rail on wide screens ---------- */

@@ -1,16 +1,19 @@
 /* ============================================================
    AURA — settings.js (localStorage-backed preferences)
+   - Tema claro/oscuro persistente
+   - Accent color personalizable (San Francisco / Esmeralda /
+     Violeta / Ámbar) aplicado vía data-accent en <html>
+   - Credenciales Supabase (URL + anon key)
    ============================================================ */
 
 const Settings = (() => {
-  const KEY = 'aura_settings_v1';
+  const KEY = 'aura_settings_v2';
 
   const DEFAULTS = {
     theme: 'dark',            // 'dark' | 'light'
-    colorTheme: '',           // '' (Aura Violeta) | 'emerald' | 'sunset' | 'sapphire'
+    accent: 'sf',             // 'sf' | 'emerald' | 'violet' | 'amber'
     geminiKey: '',
     geminiModel: 'gemini-3.5-flash',
-    couchURL: '',
     notifications: false,
     userName: 'Estudiante',
     sidebarMode: 'expanded'   // 'expanded' | 'rail' | 'hidden' (solo desktop)
@@ -30,6 +33,16 @@ const Settings = (() => {
       cache.geminiModel = DEFAULTS.geminiModel;
       localStorage.setItem(KEY, JSON.stringify(cache));
     }
+    // Migración v1 → v2: colorTheme viejo → accent nuevo
+    if (!cache.accent || cache.accent === '') {
+      try {
+        const old = JSON.parse(localStorage.getItem('aura_settings_v1') || '{}');
+        if (old.colorTheme === 'sapphire') cache.accent = 'sf';
+        else if (old.colorTheme === 'emerald') cache.accent = 'emerald';
+        else if (old.colorTheme === 'sunset') cache.accent = 'amber';
+        else if (old.colorTheme === '') cache.accent = 'violet';
+      } catch (e) { /* noop */ }
+    }
     return cache;
   }
 
@@ -44,30 +57,27 @@ const Settings = (() => {
   function applyTheme() {
     document.documentElement.classList.toggle('light', cache.theme === 'light');
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', cache.theme === 'light' ? '#f8fafc' : (PALETTE_BG[cache.colorTheme] || '#0d0d11'));
+    if (meta) meta.setAttribute('content', cache.theme === 'light' ? '#f2f2f7' : '#121212');
   }
 
-  /* Paletas de color Liquid Glass / Neón (ver css/base.css: [data-theme])
-     '' = Aura Violeta (predeterminado). Persistencia vía Settings.patch → localStorage. */
-  const THEMES = ['', 'emerald', 'sunset', 'sapphire'];
-  const PALETTE_BG = { emerald: '#050d0a', sunset: '#120c07', sapphire: '#060b13' };
+  /* ---------------- Accent color ---------------- */
+  const ACCENTS = ['sf', 'emerald', 'violet', 'amber'];
 
-  /* Aplica el atributo data-theme en <html> + tinte del theme-color de la PWA */
-  function applyColorTheme() {
-    const t = THEMES.includes(cache.colorTheme) ? cache.colorTheme : '';
-    if (t) document.documentElement.setAttribute('data-theme', t);
-    else document.documentElement.removeAttribute('data-theme');
-    applyTheme();
+  function applyAccent() {
+    const a = ACCENTS.includes(cache.accent) ? cache.accent : 'sf';
+    if (a === 'sf') document.documentElement.removeAttribute('data-accent');
+    else document.documentElement.setAttribute('data-accent', a);
   }
 
-  function setColorTheme(t) {
-    cache.colorTheme = THEMES.includes(t) ? t : '';
+  function setAccent(a) {
+    cache.accent = ACCENTS.includes(a) ? a : 'sf';
     localStorage.setItem(KEY, JSON.stringify(cache));
-    applyColorTheme();
-    return cache.colorTheme;
+    applyAccent();
+    return cache.accent;
   }
 
-  /* Modo de sidebar en desktop: expanded | rail | hidden */
+  /* ---------------- Sidebar (desktop) ---------------- */
+
   function applySidebarMode() {
     const root = document.documentElement;
     root.classList.remove('side-expanded', 'side-rail', 'side-hidden');
@@ -85,5 +95,5 @@ const Settings = (() => {
     return cache.sidebarMode;
   }
 
-  return { load, get, patch, applyTheme, applyColorTheme, setColorTheme, applySidebarMode, cycleSidebarMode };
+  return { load, get, patch, applyTheme, applyAccent, setAccent, applySidebarMode, cycleSidebarMode };
 })();

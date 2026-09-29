@@ -1,104 +1,120 @@
 /* ============================================================
-   AURA Life Dashboard — Base Design Tokens & Ambient Canvas
-   Refined Cyber-Glassmorphism · Plus Jakarta Sans
+   AURA Life Dashboard — Base Design Tokens
+   Sinfonía de Gris Carbón · estilo Apple minimalista
+   - Superficies planas en capas (#121212 / #1c1c1e), sin degradados
+   - Bordes hairline + sombras elevadas sutiles (sin glows neón)
+   - Acento personalizable vía [data-accent] (variables CSS)
+   - Micro-interacciones: cubic-bezier(0.16, 1, 0.3, 1)
    ============================================================ */
 
 :root {
   color-scheme: dark;
 
-  /* Canvas */
-  --bg: #0d0d11;
-  --bg-elev: #131317;
+  /* Canvas — gris carbón profundo */
+  --bg: #121212;
+  --bg-elev: #1c1c1e;
 
-  /* Surfaces (translucent glass tiers — liquid glass) */
-  --glass-1: rgba(26, 26, 32, 0.52);
-  --glass-2: rgba(34, 34, 42, 0.62);
-  --glass-3: rgba(16, 16, 21, 0.66);
-  --glass-input: rgba(24, 24, 30, 0.45);
-  --glass-blur: blur(20px) saturate(180%);
-  --glass-blur-strong: blur(32px) saturate(180%);
-  --glass-highlight: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 40%, transparent 60%);
-  --glass-sheen: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), rgba(255,255,255,0.09), transparent 65%);
+  /* Surfaces planas (capas opacas/semitransparentes sin blur) */
+  --glass-1: rgba(28, 28, 30, 0.72);
+  --glass-2: rgba(28, 28, 30, 0.88);
+  --glass-3: rgba(18, 18, 18, 0.92);
+  --glass-input: rgba(44, 44, 46, 0.45);
 
-  /* Text */
-  --text: #eceaf2;
-  --text-2: #d4cddd;
-  --text-3: #a49cb2;
+  /* Text — escala tipográfica neutra */
+  --text: #f5f5f7;
+  --text-2: #d1d1d6;
+  --text-3: #8e8e93;
 
-  /* Borders — ultra-sutiles estilo Liquid Glass */
-  --rim: rgba(255, 255, 255, 0.12);
-  --rim-strong: rgba(255, 255, 255, 0.22);
+  /* Borders — hairline */
+  --rim: rgba(255, 255, 255, 0.10);
+  --rim-strong: rgba(255, 255, 255, 0.18);
   --rim-faint: rgba(255, 255, 255, 0.06);
 
-  /* Neon duotone */
-  --violet: #8b5cf6;
-  --violet-bright: #d0bcff;
-  --violet-soft: rgba(139, 92, 246, 0.16);
-  --cyan: #22d3ee;
-  --cyan-deep: #06b6d4;
-  --cyan-soft: rgba(34, 211, 238, 0.14);
+  /* Acento — Azul San Francisco (default, sin data-accent) */
+  --accent-color: #0a84ff;
+  --accent-soft: rgba(10, 132, 255, 0.14);
 
-  /* Status */
-  --ok: #10b981;
-  --warn: #f59e0b;
-  --alert: #f43f5e;
-  --ok-soft: rgba(16, 185, 129, 0.14);
-  --warn-soft: rgba(245, 158, 11, 0.14);
-  --alert-soft: rgba(244, 63, 94, 0.16);
+  /* Alias de compatibilidad (código existente usa --violet/--cyan) */
+  --violet: var(--accent-color);
+  --violet-bright: var(--accent-color);
+  --violet-soft: var(--accent-soft);
+  --cyan: var(--accent-color);
+  --cyan-deep: var(--accent-color);
+  --cyan-soft: var(--accent-soft);
 
-  /* Glows */
-  --glow-violet: 0 0 16px rgba(139, 92, 246, 0.35);
-  --glow-violet-lg: 0 8px 32px -4px rgba(139, 92, 246, 0.25), 0 0 0 1px rgba(139, 92, 246, 0.4);
-  --glow-cyan: 0 0 16px rgba(34, 211, 238, 0.3);
-  --glow-hover: 0 0 24px rgba(139, 92, 246, 0.6);
-  --shadow-day: 0 10px 30px -10px rgba(15, 23, 42, 0.08);
-  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
+  /* Status (desaturados, estilo sistema) */
+  --ok: #30d158;
+  --warn: #ffd60a;
+  --alert: #ff453a;
+  --ok-soft: rgba(48, 209, 88, 0.14);
+  --warn-soft: rgba(255, 214, 10, 0.12);
+  --alert-soft: rgba(255, 69, 58, 0.14);
 
-  /* Radii */
+  /* Sombras elevadas sutiles (reemplazan glows y bordes gruesos) */
+  --shadow-day: 0 1px 3px rgba(0, 0, 0, 0.24);
+  --shadow-glass: 0 8px 24px -12px rgba(0, 0, 0, 0.55);
+  --shadow-float: 0 16px 48px -16px rgba(0, 0, 0, 0.65);
+
+  /* Radios */
   --r-sm: 8px;
   --r-md: 12px;
-  --r-lg: 16px;
-  --r-xl: 24px;
+  --r-lg: 14px;
+  --r-xl: 20px;
   --r-full: 9999px;
 
-  /* Motion — microinteracciones fluidas Apple-style */
+  /* Motion — microinteracciones suaves */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
-  --t-fast: 160ms;
-  --t-ui: 250ms;          /* microinteracción estándar */
+  --t-fast: 140ms;
+  --t-ui: 220ms;
   --t-med: 280ms;
   --t-slow: 480ms;
+
+  /* Cuadrícula base de 8px */
+  --s1: 8px;
+  --s2: 16px;
+  --s3: 24px;
+  --s4: 32px;
 
   /* Layout */
   --nav-h: 74px;
   --fab-zone: 158px;
 }
 
+/* ---------- Acentos personalizados ---------- */
+html[data-accent="emerald"] {
+  --accent-color: #30d158;
+  --accent-soft: rgba(48, 209, 88, 0.14);
+}
+html[data-accent="violet"] {
+  --accent-color: #bf5af2;
+  --accent-soft: rgba(191, 90, 242, 0.14);
+}
+html[data-accent="amber"] {
+  --accent-color: #ff9f0a;
+  --accent-soft: rgba(255, 159, 10, 0.15);
+}
+
+/* ---------- Light Mode — neutros suaves ---------- */
 html.light {
   color-scheme: light;
-  --bg: #e6eaf2;
-  --bg-elev: #f1f5f9;
-  --glass-1: rgba(255, 255, 255, 0.55);
-  --glass-2: rgba(255, 255, 255, 0.68);
-  --glass-3: rgba(255, 255, 255, 0.62);
-  --glass-input: rgba(255, 255, 255, 0.5);
-  --glass-highlight: linear-gradient(135deg, rgba(255,255,255,0.85), rgba(255,255,255,0.2) 40%, transparent 60%);
-  --glass-sheen: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), rgba(255,255,255,0.55), transparent 65%);
-  /* Texto oscuro con contraste AA/AAA sobre glass claro */
-  --text: #0b1220;
-  --text-2: #2e3b4e;
-  --text-3: #56677e;
-  --rim: rgba(15, 23, 42, 0.12);
-  --rim-strong: rgba(15, 23, 42, 0.2);
-  --rim-faint: rgba(15, 23, 42, 0.06);
-  --violet-bright: #6d28d9;
-  --cyan: #0e7490;
-  --glow-violet: 0 0 16px rgba(139, 92, 246, 0.22);
-  --glow-cyan: 0 0 16px rgba(6, 182, 212, 0.2);
-  --shadow-day: 0 10px 30px -10px rgba(15, 23, 42, 0.1);
-  --shadow-glass: 0 8px 32px 0 rgba(15, 23, 42, 0.14);
+  --bg: #f2f2f7;
+  --bg-elev: #ffffff;
+  --glass-1: rgba(255, 255, 255, 0.82);
+  --glass-2: rgba(255, 255, 255, 0.94);
+  --glass-3: rgba(242, 242, 247, 0.95);
+  --glass-input: rgba(118, 118, 128, 0.09);
+  --text: #1c1c1e;
+  --text-2: #3a3a3c;
+  --text-3: #8e8e93;
+  --rim: rgba(0, 0, 0, 0.10);
+  --rim-strong: rgba(0, 0, 0, 0.16);
+  --rim-faint: rgba(0, 0, 0, 0.05);
+  --shadow-day: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-glass: 0 8px 24px -12px rgba(0, 0, 0, 0.16);
+  --shadow-float: 0 16px 48px -16px rgba(0, 0, 0, 0.22);
 }
 
 /* ---------- Reset ---------- */
@@ -106,11 +122,11 @@ html.light {
 html, body { width: 100%; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
   min-height: 100vh;
@@ -119,24 +135,21 @@ body {
   transition: background-color var(--t-slow) var(--ease-inout), color var(--t-med) var(--ease-out);
 }
 
-::selection { background: var(--violet); color: #fff; }
+::selection { background: var(--accent-color); color: #fff; }
 
 button { font-family: inherit; color: inherit; cursor: pointer; }
 input, textarea, select { font-family: inherit; color: inherit; }
 img { display: block; max-width: 100%; }
 
-/* Scrollbars: slim + glass */
+/* Scrollbars: slim, discretos */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--rim-strong);
-  border-radius: 99px;
-}
-::-webkit-scrollbar-thumb:hover { background: var(--violet); }
+::-webkit-scrollbar-thumb { background: var(--rim-strong); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* ---------- Ambient Background (Tier 0) ---------- */
+/* ---------- Ambient: viñeta estática (cero animaciones) ---------- */
 .ambient {
   position: fixed;
   inset: 0;
@@ -145,195 +158,40 @@ img { display: block; max-width: 100%; }
   pointer-events: none;
   background: var(--bg);
 }
-.ambient::after {
-  /* fine grain to avoid banding */
-  content: '';
+.ambient-vignette {
   position: absolute;
   inset: 0;
-  opacity: 0.5;
-  background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
-  background-size: 3px 3px;
-  mix-blend-mode: overlay;
+  background:
+    radial-gradient(1200px 800px at 50% -10%, rgba(255, 255, 255, 0.025), transparent 60%),
+    radial-gradient(1000px 700px at 50% 115%, rgba(0, 0, 0, 0.28), transparent 65%);
 }
-html.light .ambient::after { display: none; }
-
-.orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(90px);
-  opacity: 0.55;
-  will-change: transform;
-  animation: orb-drift 26s var(--ease-inout) infinite alternate;
-}
-.orb--violet {
-  width: 46vmax; height: 46vmax;
-  top: -18vmax; left: -12vmax;
-  background: radial-gradient(circle at 35% 35%, rgba(139,92,246,0.35), transparent 65%);
-}
-.orb--cyan {
-  width: 40vmax; height: 40vmax;
-  bottom: -16vmax; right: -10vmax;
-  background: radial-gradient(circle at 60% 60%, rgba(34,211,238,0.28), transparent 65%);
-  animation-delay: -13s;
-  animation-duration: 32s;
-}
-.orb--center {
-  width: 28vmax; height: 28vmax;
-  top: 38%; left: 42%;
-  background: radial-gradient(circle, rgba(139,92,246,0.12), transparent 70%);
-  animation-delay: -7s;
-  animation-duration: 38s;
-}
-html.light .orb { opacity: 0.4; filter: blur(80px); }
-
-@keyframes orb-drift {
-  0%   { transform: translate3d(0, 0, 0) scale(1); }
-  50%  { transform: translate3d(6vmax, 4vmax, 0) scale(1.12); }
-  100% { transform: translate3d(-4vmax, -3vmax, 0) scale(0.95); }
-}
-
-/* Soft aurora sweep line */
-.aurora-beam {
-  position: absolute;
-  top: 0; bottom: 0;
-  width: 1px;
-  background: linear-gradient(180deg, transparent, rgba(139,92,246,0.25), rgba(34,211,238,0.2), transparent);
-  animation: beam-sweep 14s linear infinite;
-  opacity: 0.6;
-}
-.aurora-beam--1 { left: 18%; animation-delay: 0s; }
-.aurora-beam--2 { left: 64%; animation-delay: -7s; animation-duration: 19s; }
-html.light .aurora-beam { opacity: 0.35; }
-
-@keyframes beam-sweep {
-  0%   { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
+html.light .ambient-vignette {
+  background:
+    radial-gradient(1200px 800px at 50% -10%, rgba(255, 255, 255, 0.7), transparent 60%),
+    radial-gradient(1000px 700px at 50% 115%, rgba(0, 0, 0, 0.05), transparent 65%);
 }
 
 /* ---------- Safe areas ---------- */
 .pt-safe  { padding-top: env(safe-area-inset-top, 0px); }
 .pb-safe  { padding-bottom: env(safe-area-inset-bottom, 0px); }
 
-/* ============================================================
-   THEME TOKENS — alias genéricos + paletas Liquid Glass / Neón
-   El tema activo se aplica vía [data-theme] en <html> desde
-   settings.js (persistido en localStorage). Solo se retokenizan
-   variables CSS: cero cambios en la lógica de DB/sync.
-   ============================================================ */
-
-/* Tema predeterminado (Aura Violeta) */
+/* ---------- Alias genéricos ---------- */
 :root {
-  --primary-color: var(--violet);
-  --accent-color: var(--cyan);
+  --primary-color: var(--accent-color);
   --bg-glass: var(--glass-1);
-  --primary-soft: var(--violet-soft);
-  --accent-soft: var(--cyan-soft);
-  --glow-primary: var(--glow-violet);
-  --glow-accent: var(--glow-cyan);
+  --primary-soft: var(--accent-soft);
+  --glow-primary: var(--shadow-glass);
+  --glow-accent: var(--shadow-glass);
+  --glow-violet: var(--shadow-glass);
+  --glow-violet-lg: var(--shadow-glass);
+  --glow-cyan: var(--shadow-glass);
+  --glow-hover: 0 10px 30px -12px rgba(0, 0, 0, 0.6);
 }
 
-/* a) Emerald / Cyberpunk — acentos verde neón #00ff9d, fondos verdes profundos */
-html[data-theme="emerald"] {
-  --violet: #00ff9d;
-  --violet-bright: #a7ffdb;
-  --violet-soft: rgba(0, 255, 157, 0.15);
-  --cyan: #34d399;
-  --cyan-deep: #10b981;
-  --cyan-soft: rgba(52, 211, 153, 0.13);
-  --bg: #050d0a;
-  --bg-elev: #0a1712;
-  --glass-1: rgba(10, 34, 26, 0.55);
-  --glass-2: rgba(13, 44, 34, 0.66);
-  --glass-3: rgba(6, 22, 17, 0.7);
-  --glass-input: rgba(8, 30, 23, 0.5);
-  --primary-color: #00ff9d;
-  --accent-color: #34d399;
-  --bg-glass: rgba(10, 34, 26, 0.55);
-  --primary-soft: rgba(0, 255, 157, 0.15);
-  --accent-soft: rgba(52, 211, 153, 0.13);
-  --glow-primary: 0 0 16px rgba(0, 255, 157, 0.4);
-  --glow-accent: 0 0 16px rgba(52, 211, 153, 0.3);
-  --glow-hover: 0 0 24px rgba(0, 255, 157, 0.6);
-  --glow-violet: 0 0 16px rgba(0, 255, 157, 0.4);
-  --glow-cyan: 0 0 16px rgba(52, 211, 153, 0.3);
-  --glow-violet-lg: 0 8px 32px -4px rgba(0, 255, 157, 0.25), 0 0 0 1px rgba(0, 255, 157, 0.4);
-  --theme-color-bg: #050d0a;
-}
-
-/* b) Sunset / Amber — acentos cálidos naranja/ámbar #ff8c00, fondos oscuros cálidos */
-html[data-theme="sunset"] {
-  --violet: #ff8c00;
-  --violet-bright: #ffd8a8;
-  --violet-soft: rgba(255, 140, 0, 0.16);
-  --cyan: #ff5e3a;
-  --cyan-deep: #f43f5e;
-  --cyan-soft: rgba(255, 94, 58, 0.13);
-  --bg: #120c07;
-  --bg-elev: #1b1209;
-  --glass-1: rgba(43, 26, 10, 0.55);
-  --glass-2: rgba(54, 33, 13, 0.66);
-  --glass-3: rgba(28, 17, 7, 0.7);
-  --glass-input: rgba(38, 23, 9, 0.5);
-  --primary-color: #ff8c00;
-  --accent-color: #ff5e3a;
-  --bg-glass: rgba(43, 26, 10, 0.55);
-  --primary-soft: rgba(255, 140, 0, 0.16);
-  --accent-soft: rgba(255, 94, 58, 0.13);
-  --glow-primary: 0 0 16px rgba(255, 140, 0, 0.4);
-  --glow-accent: 0 0 16px rgba(255, 94, 58, 0.3);
-  --glow-hover: 0 0 24px rgba(255, 140, 0, 0.6);
-  --glow-violet: 0 0 16px rgba(255, 140, 0, 0.4);
-  --glow-cyan: 0 0 16px rgba(255, 94, 58, 0.3);
-  --glow-violet-lg: 0 8px 32px -4px rgba(255, 140, 0, 0.25), 0 0 0 1px rgba(255, 140, 0, 0.4);
-  --theme-color-bg: #120c07;
-}
-
-/* c) Sapphire / Ice — acentos azul cian/hielo #00e5ff, fondos azulados oscuros */
-html[data-theme="sapphire"] {
-  --violet: #00e5ff;
-  --violet-bright: #b8f4ff;
-  --violet-soft: rgba(0, 229, 255, 0.15);
-  --cyan: #38bdf8;
-  --cyan-deep: #0284c7;
-  --cyan-soft: rgba(56, 189, 248, 0.13);
-  --bg: #060b13;
-  --bg-elev: #0a1220;
-  --glass-1: rgba(10, 26, 46, 0.55);
-  --glass-2: rgba(13, 34, 58, 0.66);
-  --glass-3: rgba(6, 16, 30, 0.7);
-  --glass-input: rgba(8, 22, 40, 0.5);
-  --primary-color: #00e5ff;
-  --accent-color: #38bdf8;
-  --bg-glass: rgba(10, 26, 46, 0.55);
-  --primary-soft: rgba(0, 229, 255, 0.15);
-  --accent-soft: rgba(56, 189, 248, 0.13);
-  --glow-primary: 0 0 16px rgba(0, 229, 255, 0.4);
-  --glow-accent: 0 0 16px rgba(56, 189, 248, 0.3);
-  --glow-hover: 0 0 24px rgba(0, 229, 255, 0.6);
-  --glow-violet: 0 0 16px rgba(0, 229, 255, 0.4);
-  --glow-cyan: 0 0 16px rgba(56, 189, 248, 0.3);
-  --glow-violet-lg: 0 8px 32px -4px rgba(0, 229, 255, 0.25), 0 0 0 1px rgba(0, 229, 255, 0.4);
-  --theme-color-bg: #060b13;
-}
-
-/* Transición fluida al alternar temas (propiedades de color seguras) */
+/* Transición fluida al alternar temas */
 body, .card, .app-header, .sidebar, .modal-panel, .input, .btn, .chip,
-.side-item, .nav-item, .quick-btn, .segmented, .cloud-chip {
+.side-item, .nav-item, .quick-btn, .segmented {
   transition-property: background-color, border-color, color, box-shadow;
   transition-duration: var(--t-med);
   transition-timing-function: var(--ease-out);
-}
-
-/* Orbes ambientales tiñéndose con el tema activo */
-html[data-theme] .orb--violet {
-  background: radial-gradient(circle at 35% 35%, var(--primary-soft), transparent 65%);
-}
-html[data-theme] .orb--cyan {
-  background: radial-gradient(circle at 60% 60%, var(--accent-soft), transparent 65%);
-}
-html[data-theme] .orb--center {
-  background: radial-gradient(circle, var(--primary-soft), transparent 70%);
-}
-html[data-theme] .aurora-beam {
-  background: linear-gradient(180deg, transparent, var(--primary-soft), var(--accent-soft), transparent);
 }

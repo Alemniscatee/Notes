@@ -5,7 +5,7 @@
    - Gemini/API: network-only (no cacheamos respuestas privadas)
    ============================================================ */
 
-const VERSION = 'aura-v2.4.1';
+const VERSION = 'aura-v3.0.0';
 const SHELL_CACHE = `${VERSION}-shell`;
 const CDN_CACHE = `${VERSION}-cdn`;
 
@@ -18,8 +18,8 @@ const SHELL_ASSETS = [
   './css/components.css',
   './css/views.css',
   './css/app.css',
-  './js/db.js',
   './js/store.js',
+  './js/supabase.js',
   './js/exporter.js',
   './js/settings.js',
   './js/gemini.js',
@@ -41,8 +41,7 @@ const SHELL_ASSETS = [
 ];
 
 const CDN_ASSETS = [
-  'https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.min.js',
-  'https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.find.min.js',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
   'https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js',
   'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js',
   'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
@@ -89,6 +88,7 @@ self.addEventListener('fetch', event => {
 
   // Never intercept Gemini or remote DB traffic (private, dynamic, CORS-heavy)
   if (/generativelanguage\.googleapis\.com$/i.test(url.hostname)) return;
+  if (/\.supabase\.(co|in)$/i.test(url.hostname)) return;
   if (url.pathname.includes('/_remote_')) return;
 
   // App shell: network-first, fall back to cache (and notify clients to reload on update)

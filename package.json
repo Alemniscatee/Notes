@@ -1,7 +1,7 @@
 {
   "name": "aura-life-dashboard",
-  "version": "1.1.0",
-  "description": "PWA académica offline-first: notas, tareas, calendario, voz + IA (Gemini) y sync CouchDB.",
+  "version": "3.0.0",
+  "description": "PWA académica cloud-first (Supabase + Realtime): notas, tareas, calendario, voz + IA (Gemini).",
   "private": true,
   "scripts": {
     "start": "http-server -p 8080 -c-1 --silent",

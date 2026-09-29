@@ -2,8 +2,8 @@
    AURA — app.js
    Orquestador: router de vistas, dashboard, tareas, notas,
    materias (CRUD completo), horario de clases, ajustes,
-   sincronización, install y SW registration.
-   Depende de: Settings, DB, Store, Gemini, UI, Cal, Editor,
+   Supabase Cloud + Realtime, install y SW registration.
+   Depende de: Settings, Cloud, Store, Gemini, UI, Cal, Editor,
    Capture, Vault, Notify.
    ============================================================ */
 
@@ -210,14 +210,19 @@ const App = (() => {
   /* ================= Bootstrap ================= */
   async function init() {
     Settings.load();
-    Settings.applyColorTheme();   // tema claro/oscuro + paleta neón persistida
+    Settings.applyTheme();       // claro/oscuro persistido
+    Settings.applyAccent();      // color de acento personalizable
     Settings.applySidebarMode();
     UI.initModals();
     UI.initRipple();
     UI.initWikilinks();
     initPointerGlow();
 
-    await DB.init();
+    // Sync entre pestañas del mismo dispositivo + inicializa cliente
+    Store.initBroadcast();
+    Cloud.init();
+    Cloud.onStatus(updateSyncUI);
+
     bindNav();
     bindHeader();
     bindSidebarModes();
@@ -226,7 +231,7 @@ const App = (() => {
     bindNotes();
     bindMaterias();
     bindGlobalSearch();
-    bindThemePicker();
+    bindAccentPicker();
     bindSettings();
     Cal.init();
     Editor.init();
@@ -239,18 +244,14 @@ const App = (() => {
     Notify.onNotificationClickFocus();
 
     Store.setChangeHook(() => refreshAll());
-    DB.onStatus(updateSyncUI);
 
-    // Sync inicial automática si hay credencial guardada (localStorage)
-    const s = Settings.get();
-    if (s.couchURL) DB.startSync(s.couchURL);
-    else updateSyncUI(navigator.onLine ? 'ok' : 'offline');
-
-    // Mantener la sync viva en segundo plano (PC y celular):
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) resumeCloudSync();
-    });
-    window.addEventListener('online', resumeCloudSync);
+    // Realtime en vivo si hay credenciales guardadas; si no, modo local
+    if (Cloud.hasCred()) {
+      Cloud.startRealtime();
+      updateSyncUI('syncing');
+    } else {
+      updateSyncUI(navigator.onLine ? 'ok' : 'offline');
+    }
 
     await refreshAll();
     fillSettingsForm();
@@ -532,7 +533,7 @@ const App = (() => {
       const isDaily = n.materia === 'VIDA_COTIDIANA';
       const c = isDaily ? 'var(--cyan)' : UI.colorFor(n.materia, subjectsCache);
       const tagLabel = isDaily ? '🏠 Vida Cotidiana' : UI.escapeHTML(n.materia || 'General');
-      const firstAtt = Object.keys(n._attachments || {})[0];
+      const firstAtt = (n.imagenes && n.imagenes[0] && n.imagenes[0].name) || null;
       return `
         <div class="card card--hover note-card" data-note="${n._id}">
           ${firstAtt ? `<img class="note-thumb" data-att="${n._id}" data-name="${UI.escapeAttr(firstAtt)}" alt="">` : ''}
@@ -598,14 +599,15 @@ const App = (() => {
     }
   }
 
-  /* Borrado permanente en PouchDB (db.remove) + refresh de la vista sin recargar */
+  /* Borrado permanente en Supabase + refresh de la vista sin recargar */
   async function deleteNote(id) {
     const n = notesCache.find(x => x._id === id);
     const label = n && n.titulo ? `"${n.titulo}"` : 'esta nota';
     if (!confirm(`¿Eliminar ${label} permanentemente? Esta acción no se puede deshacer.`)) return;
     try {
-      const doc = await DB.get().get(id);
-      await DB.get().remove(doc);          // borrado permanente en PouchDB
+      const c = Cloud.getClient();
+      const { error } = await c.from('notas').delete().eq('id', id);
+      if (error) throw error;
       UI.toast('Nota eliminada ✓', 'ok');
       await refreshAll();                  // re-renderiza la vista al instante
     } catch (e) {
@@ -716,27 +718,24 @@ const App = (() => {
     box.querySelector('#gsrMore')?.addEventListener('click', () => showView('notes'));
   }
 
-  /* ================= Selector de temas (Ajustes) ================= */
-  function bindThemePicker() {
-    const picker = $('themePicker');
+  /* ================= Selector de accent color (Ajustes) ================= */
+  function bindAccentPicker() {
+    const picker = $('accentPicker');
     if (!picker) return;
-    markActiveThemeOption();
-    picker.querySelectorAll('[data-theme-choice]').forEach(btn =>
+    markActiveAccentOption();
+    picker.querySelectorAll('[data-accent-choice]').forEach(btn =>
       btn.addEventListener('click', () => {
-        Settings.setColorTheme(btn.dataset.themeChoice);   // persiste en localStorage
-        markActiveThemeOption();
-        UI.toast(
-          btn.dataset.themeChoice === 'emerald' ? 'Tema Emerald / Cyberpunk ✓' :
-          btn.dataset.themeChoice === 'sunset' ? 'Tema Sunset / Amber ✓' :
-          btn.dataset.themeChoice === 'sapphire' ? 'Tema Sapphire / Ice ✓' :
-          'Tema Aura Violeta ✓', 'ok', 1600);
+        Settings.setAccent(btn.dataset.accentChoice);   // persiste + aplica data-accent
+        markActiveAccentOption();
+        const NAMES = { sf: 'Azul San Francisco ✓', emerald: 'Verde Esmeralda ✓', violet: 'Violeta ✓', amber: 'Ámbar ✓' };
+        UI.toast(NAMES[btn.dataset.accentChoice] || 'Acento actualizado ✓', 'ok', 1600);
       }));
   }
 
-  function markActiveThemeOption() {
-    const active = Settings.get().colorTheme || '';
-    document.querySelectorAll('[data-theme-choice]').forEach(btn =>
-      btn.classList.toggle('active', (btn.dataset.themeChoice || '') === active));
+  function markActiveAccentOption() {
+    const active = Settings.get().accent || 'sf';
+    document.querySelectorAll('[data-accent-choice]').forEach(btn =>
+      btn.classList.toggle('active', (btn.dataset.accentChoice || '') === active));
   }
 
   /* ================= Materias (CRUD completo) ================= */
@@ -836,7 +835,7 @@ const App = (() => {
       b.addEventListener('click', async () => {
         if (!confirm('¿Eliminar materia? Las tareas y notas no se borran.')) return;
         const sub = subjectsCache.find(s => s._id === b.dataset.delmat);
-        await Store.deleteSubject(b.dataset.delmat, sub._rev);
+        await Store.deleteSubject(b.dataset.delmat);
         if (editingMateriaId === b.dataset.delmat) resetMateriaForm();
         await refreshAll();
         renderMaterias();
@@ -906,12 +905,8 @@ const App = (() => {
     $('saveSettingsBtn').addEventListener('click', saveSettings);
     $('testGeminiBtn').addEventListener('click', testGemini);
     $('testSyncBtn').addEventListener('click', testSync);
-    $('startSyncBtn').addEventListener('click', startSyncNow);
-    $('stopSyncBtn').addEventListener('click', () => {
-      DB.stopSync();
-      UI.toast('Sincronización detenida', 'info');
-      updateSyncUI('offline');
-    });
+    $('saveSupabaseBtn').addEventListener('click', connectSupabase);
+    $('disconnectSupabaseBtn').addEventListener('click', disconnectSupabase);
     $('setNotifications').addEventListener('change', async e => {
       if (e.target.checked) {
         const ok = await Notify.requestPermission();
@@ -932,7 +927,6 @@ const App = (() => {
     const s = Settings.get();
     $('setGeminiKey').value = s.geminiKey || '';
     $('setGeminiModel').value = s.geminiModel || 'gemini-3.5-flash';
-    $('setCouchURL').value = s.couchURL || '';
     $('setUserName').value = s.userName || 'Estudiante';
     $('setNotifications').checked = !!s.notifications;
   }
@@ -941,11 +935,8 @@ const App = (() => {
     Settings.patch({
       geminiKey: $('setGeminiKey').value.trim(),
       geminiModel: $('setGeminiModel').value,
-      couchURL: $('setCouchURL').value.trim(),
       userName: $('setUserName').value.trim() || 'Estudiante'
     });
-    const url = $('setCouchURL').value.trim();
-    if (url) DB.startSync(url);
     UI.toast('Ajustes guardados ✓', 'ok');
     renderDashboard();
   }
@@ -965,83 +956,77 @@ const App = (() => {
     }
   }
 
+  /* ================= Supabase Cloud (conexión desde Ajustes) ================= */
   async function testSync() {
     const out = $('syncTestResult');
     out.textContent = 'Probando…';
-    const url = $('setCouchURL').value.trim();
-    Settings.patch({ couchURL: url });
+    const url = $('setSupabaseURL').value.trim();
+    const key = $('setSupabaseKey').value.trim();
+    if (!url || !key) {
+      out.innerHTML = '<span style="color:var(--warn);">Ingresa Project URL y Anon key.</span>';
+      return;
+    }
     try {
-      const info = await DB.testConnection(url);
-      out.innerHTML = `<span style="color:var(--ok);">✓ Conectado a "${UI.escapeHTML(info.db_name || 'remoto')}"</span>`;
+      await Cloud.testConnection(url, key);
+      out.innerHTML = '<span style="color:var(--ok);">✓ Conexión OK — tablas visibles</span>';
     } catch (e) {
-      out.innerHTML = `<span style="color:var(--alert);">✕ No se pudo conectar (${UI.escapeHTML(e.message)}). Revisa URL, credenciales y CORS.</span>`;
+      out.innerHTML = `<span style="color:var(--alert);">✕ ${UI.escapeHTML(e.message || 'Error de conexión')}. Verifica URL, anon key y que ejecutaste supabase-schema.sql.</span>`;
     }
   }
 
-  function startSyncNow() {
-    const url = $('setCouchURL').value.trim();
-    if (!url) { UI.toast('Ingresa la URL remota primero', 'err'); return; }
-    Settings.patch({ couchURL: url });
-    const ok = DB.startSync(url);
-    UI.toast(ok ? 'Sincronización en vivo iniciada' : 'No se pudo iniciar sync', ok ? 'ok' : 'err');
+  async function connectSupabase() {
+    const url = $('setSupabaseURL').value.trim();
+    const key = $('setSupabaseKey').value.trim();
+    if (!url || !key) { UI.toast('Ingresa Project URL y Anon key', 'err'); return; }
+    const btn = $('saveSupabaseBtn');
+    btn.disabled = true;
+    try {
+      const ok = await Cloud.connect(url, key);
+      if (!ok) throw new Error('No se pudo inicializar el cliente');
+      UI.toast('Supabase conectado · Realtime activo ✓', 'ok');
+      updateSyncUI('syncing');
+      await refreshAll();
+    } catch (e) {
+      UI.toast('Error conectando: ' + e.message, 'err', 5000);
+    } finally {
+      btn.disabled = false;
+    }
   }
 
-  /* Indicador de sincronización en la nube (chip del header):
-     🟢 Sincronizado en la nube · 🟡 Guardado local · 🔴 Error de conexión */
+  function disconnectSupabase() {
+    if (!confirm('¿Desconectar la nube? Tus datos permanecen en Supabase; la app quedará en modo local.')) return;
+    Cloud.disconnect();
+    $('setSupabaseURL').value = '';
+    $('setSupabaseKey').value = '';
+    $('syncTestResult').textContent = '';
+    UI.toast('Nube desconectada', 'info');
+  }
+
+  /* Indicador de sincronización (pie del sidebar):
+     🟢 Nube activa · 🟡 Local · 🔴 Error · ⏳ Sincronizando */
   function updateSyncUI(status, detail) {
-    const chip = $('cloudChip');
+    const dot = $('cloudDot');
     const label = $('cloudChipText');
-    if (!chip || !label) return;
-    chip.classList.remove('cloud-chip--cloud', 'cloud-chip--local', 'cloud-chip--error', 'cloud-chip--syncing');
-    const hasRemote = !!DB.remoteURL;
+    const state = $('supabaseState');
+    const hasRemote = Cloud.hasCred() && !!Cloud.getClient();
 
-    if (status === 'syncing') {
-      chip.classList.add('cloud-chip--syncing');
-      label.textContent = 'Sincronizando…';
-    } else if (status === 'error' || status === 'denied') {
-      chip.classList.add('cloud-chip--error');
-      label.textContent = 'Error de conexión';
-    } else if (status === 'offline') {
-      chip.classList.add(hasRemote ? 'cloud-chip--error' : 'cloud-chip--local');
-      label.textContent = hasRemote ? 'Sin conexión' : 'Guardado local';
-    } else if (status === 'ok') {
-      if (hasRemote) {
-        chip.classList.add('cloud-chip--cloud');
-        label.textContent = 'Sincronizado en la nube';
-      } else {
-        chip.classList.add('cloud-chip--local');
-        label.textContent = 'Guardado local';
-      }
-    }
-    chip.title = hasRemote
-      ? 'Sync automática activa con: ' + DB.remoteURL
-      : 'Sin nube configurada — toca para configurar';
-  }
+    const set = (color, txt) => {
+      if (dot) dot.style.background = color;
+      if (label) label.textContent = txt;
+      if (state) state.textContent = txt;
+    };
 
-  /* Reanuda la sync en segundo plano: al volver a la app (PC/celular)
-     o al recuperar conexión. No duplica handlers si ya está activa. */
-  function resumeCloudSync() {
-    const url = Settings.get().couchURL;
-    if (url && !DB.isSyncing) DB.startSync(url);
+    if (status === 'syncing') set('var(--warn)', 'Sincronizando…');
+    else if (status === 'error' || status === 'denied') set('var(--alert)', 'Error de conexión');
+    else if (status === 'offline') set(hasRemote ? 'var(--alert)' : 'var(--text-3)', hasRemote ? 'Sin conexión' : 'Guardado local');
+    else if (status === 'ok') set(hasRemote ? 'var(--ok)' : 'var(--text-3)', hasRemote ? 'Nube activa · Realtime' : 'Guardado local');
   }
 
   /* ================= Export / wipe ================= */
   async function exportJSON() {
     try {
-      const docs = await DB.get().allDocs({ include_docs: true });
-      const withAtts = await Promise.all(docs.rows.map(async row => {
-        const doc = row.doc;
-        if (doc._attachments) {
-          for (const [name, att] of Object.entries(doc._attachments)) {
-            try {
-              const blob = await DB.get().getAttachment(doc._id, name);
-              att.b64 = await Store.blobToDataURL(blob);
-            } catch (e) { /* noop */ }
-          }
-        }
-        return doc;
-      }));
-      const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), docs: withAtts }, null, 2)], { type: 'application/json' });
+      const docs = await Store.rawAll();   // todas las tablas de Supabase
+      const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), docs }, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `aura-backup-${UI.dayKey(new Date())}.json`;
@@ -1054,10 +1039,15 @@ const App = (() => {
   }
 
   async function wipeDB() {
-    if (!confirm('¿Borrar TODOS los datos locales? Esta acción no se puede deshacer (el remoto no se toca).')) return;
+    if (!confirm('¿Eliminar TODAS las notas, tareas, materias y clases de la nube? Esta acción no se puede deshacer.')) return;
     if (!confirm('¿Seguro seguro? Considera exportar un backup antes.')) return;
-    await DB.get().destroy();
-    location.reload();
+    try {
+      await Store.wipeAll();
+      UI.toast('Datos eliminados ✓', 'ok');
+      await refreshAll();
+    } catch (e) {
+      UI.toast('No se pudo borrar: ' + e.message, 'err');
+    }
   }
 
   /* ================= Refresh global ================= */

@@ -70,7 +70,7 @@ const Exporter = (() => {
           contenido: n.contenido || '',
           createdAt: n.createdAt || null,
           updatedAt: n.updatedAt || null,
-          adjuntos: Object.keys(n._attachments || {})
+          imagenes: (n.imagenes || []).map(i => (i && i.name) || null).filter(Boolean)
         }))
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });

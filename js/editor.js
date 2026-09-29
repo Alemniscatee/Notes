@@ -99,6 +99,8 @@ const Editor = (() => {
     $('paneBSelect').addEventListener('change', e => loadPaneB(e.target.value));
     $('paneBContent').addEventListener('input', updatePaneBCounter);
     $('paneBTitle').addEventListener('input', updatePaneBCounter);
+
+    initResizer();
   }
 
   const sessionOf = key => sessions.get(key);
@@ -299,7 +301,7 @@ const Editor = (() => {
     if (!s) return;
     s.images = [];
     images = s.images;
-    const names = Object.keys(note._attachments || {});
+    const names = (note.imagenes || []).map(img => img && img.name).filter(Boolean);
     for (const name of names) {
       const url = await Store.getAttachment(note._id, name);
       if (url) images.push({ name, stored: true, url });
@@ -439,7 +441,7 @@ const Editor = (() => {
     else finish();
   }
 
-  /* ================= SPLIT VIEW (solo PC) ================= */
+  /* ================= SPLIT VIEW (solo PC, reparto ajustable) ================= */
   function canSplit() { return window.matchMedia(SPLIT_QUERY).matches; }
 
   function toggleSplit() {
@@ -450,13 +452,68 @@ const Editor = (() => {
     splitOpen = !splitOpen;
     $('view-editor').classList.toggle('split-open', splitOpen);
     $('editorPaneB').hidden = !splitOpen;
-    if (splitOpen) fillPaneB();
+    $('editorResizer').hidden = !splitOpen;
+    if (splitOpen) {
+      const saved = parseFloat(localStorage.getItem('aura_split_pct'));
+      if (!isNaN(saved) && saved >= 25 && saved <= 75) applySplit(saved);
+      else applySplit(50);
+      fillPaneB();
+    }
   }
 
   function closeSplit() {
     splitOpen = false;
     $('view-editor').classList.remove('split-open');
     $('editorPaneB').hidden = true;
+    $('editorResizer').hidden = true;
+  }
+
+  /* ---------- Separador arrastrable (mousedown/mousemove/mouseup) ----------
+     Ajusta el ancho porcentual del Panel A entre 25% y 75%; el Panel B
+     ocupa el resto (flex-grow: 1). Persiste la preferencia. */
+  function applySplit(pctA) {
+    const main = document.querySelector('#view-editor .edt-main');
+    if (main) main.style.flex = `0 0 ${pctA}%`;
+  }
+
+  function initResizer() {
+    const handle = $('editorResizer');
+    if (!handle) return;
+    let dragging = false;
+
+    handle.addEventListener('mousedown', e => {
+      if (!splitOpen) return;
+      dragging = true;
+      handle.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const ws = document.querySelector('#view-editor .edt-workspace');
+      if (!ws) return;
+      const rect = ws.getBoundingClientRect();
+      const pct = ((e.clientX - rect.left) / rect.width) * 100;
+      const clamped = Math.min(75, Math.max(25, pct));
+      applySplit(clamped);
+      localStorage.setItem('aura_split_pct', String(clamped));
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      handle.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    });
+
+    // Doble clic sobre el separador: volver al reparto 50/50
+    handle.addEventListener('dblclick', () => {
+      applySplit(50);
+      localStorage.setItem('aura_split_pct', '50');
+    });
   }
 
   async function fillPaneB() {

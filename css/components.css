@@ -2,65 +2,33 @@
    AURA — Components: glass surfaces, buttons, chips, modals
    ============================================================ */
 
-/* ---------- Glass card tiers (liquid glass) ---------- */
+/* ---------- Card tiers: superficie plana, hairline + sombra sutil ---------- */
 .card {
   position: relative;
   background: var(--glass-1);   /* sin backdrop-filter: fondo rgba optimizado (perf móvil) */
   transform: translateZ(0);     /* capa GPU propia: scroll 60fps */
   border: 1px solid var(--rim);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-glass);
+  box-shadow: var(--shadow-day);
   overflow: hidden;
   transition: border-color var(--t-ui) var(--ease-standard),
               background-color var(--t-ui) var(--ease-standard),
               transform var(--t-ui) var(--ease-standard),
               box-shadow var(--t-ui) var(--ease-standard);
 }
-/* ceiling-lit glass reflection */
-.card::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
-  opacity: 0.7;
-  pointer-events: none;
-}
-html.light .card::before {
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
-}
-/* Liquid glass: diagonal highlight + specular sheen that follows the pointer */
-.card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--glass-highlight);
-  opacity: 0.6;
-  pointer-events: none;
-}
 .card > * { position: relative; z-index: 1; }
-.card:hover::after { opacity: 1; }
-.card::after {
-  transition: opacity var(--t-med) var(--ease-out);
-}
 .card--hover:hover {
-  border-color: rgba(139, 92, 246, 0.4);
-  box-shadow: var(--glow-violet-lg);
+  border-color: color-mix(in srgb, var(--accent-color) 35%, transparent);
+  box-shadow: var(--shadow-glass);
   transform: translateY(-2px);
 }
-/* Especular sheen con posición del cursor (seteada por JS) */
-.has-sheen::after {
-  background: var(--glass-highlight), var(--glass-sheen);
-}
 
-/* Tier-2 floating panels (modals, sheets) */
+/* Tier-2 floating panels (modals, sheets): solid bg, no blur */
 .card--float {
   background: var(--glass-2);
-  -webkit-backdrop-filter: var(--glass-blur-strong);
-  backdrop-filter: var(--glass-blur-strong);
-  border-color: var(--rim-strong);
+  border-color: var(--rim);
   border-radius: var(--r-xl);
-  box-shadow: var(--shadow-glass), 0 24px 64px -16px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255,255,255,0.10);
+  box-shadow: var(--shadow-float);
 }
 
 /* ---------- Buttons ---------- */
@@ -86,32 +54,29 @@ html.light .card::before {
 .btn:active { transform: scale(0.96); }
 
 .btn--primary {
-  background: linear-gradient(135deg, var(--violet) 0%, #7c3aed 100%);
+  background: var(--accent-color);
   color: #fff;
-  box-shadow: var(--glow-violet), inset 0 1px 0 rgba(255,255,255,0.25);
+  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--accent-color) 55%, transparent);
 }
-.btn--primary:hover { box-shadow: var(--glow-hover); }
-.btn--primary::after {
-  /* sheen sweep on hover */
-  content: '';
-  position: absolute;
-  top: 0; bottom: 0;
-  left: -60%;
-  width: 40%;
-  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.35), transparent);
-  transform: skewX(-20deg);
-  transition: left 0.6s var(--ease-out);
-}
-.btn--primary:hover::after { left: 120%; }
+.btn--primary:hover { box-shadow: 0 8px 22px -8px color-mix(in srgb, var(--accent-color) 60%, transparent); }
+.btn--primary:disabled { opacity: 0.55; pointer-events: none; }
 
 .btn--cyan {
-  background: rgba(6, 182, 212, 0.12);
-  color: var(--cyan);
-  border-color: rgba(34, 211, 238, 0.3);
+  background: transparent;
+  color: var(--accent-color);
+  border-color: color-mix(in srgb, var(--accent-color) 35%, transparent);
 }
 .btn--cyan:hover {
-  background: rgba(6, 182, 212, 0.2);
-  box-shadow: var(--glow-cyan);
+  background: var(--accent-soft);
+}
+
+.btn--cyan {
+  background: transparent;
+  color: var(--accent-color);
+  border-color: color-mix(in srgb, var(--accent-color) 35%, transparent);
+}
+.btn--cyan:hover {
+  background: var(--accent-soft);
 }
 
 .btn--ghost {
@@ -169,17 +134,15 @@ html.light .card::before {
 .chip:active { transform: scale(0.94); }
 
 .chip--active {
-  background: var(--cyan-soft);
-  border-color: rgba(34, 211, 238, 0.4);
-  color: var(--cyan);
-  box-shadow: 0 0 12px rgba(34, 211, 238, 0.2);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent-color) 40%, transparent);
+  color: var(--accent-color);
 }
 
 .chip--violet.chip--active {
-  background: var(--violet-soft);
-  border-color: rgba(139, 92, 246, 0.45);
-  color: var(--violet-bright);
-  box-shadow: 0 0 12px rgba(139, 92, 246, 0.25);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent-color) 45%, transparent);
+  color: var(--accent-color);
 }
 
 .chip .dot {
@@ -188,7 +151,7 @@ html.light .card::before {
   background: var(--text-3);
   flex-shrink: 0;
 }
-.chip--active .dot, .chip--violet.chip--active .dot { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+.chip--active .dot, .chip--violet.chip--active .dot { background: var(--accent-color); }
 
 /* Status pill with pulsing indicator */
 .pill {
@@ -242,8 +205,8 @@ html.light .card::before {
 }
 .input::placeholder { color: var(--text-3); }
 .input:focus {
-  border-color: var(--violet);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2), var(--glow-violet);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 textarea.input { resize: vertical; min-height: 84px; line-height: 1.55; }
 select.input { appearance: none; cursor: pointer; }
@@ -273,9 +236,8 @@ select.input { appearance: none; cursor: pointer; }
   transition: all var(--t-ui) var(--ease-standard);
 }
 .segmented button.active {
-  background: var(--violet);
+  background: var(--accent-color);
   color: #fff;
-  box-shadow: 0 0 14px rgba(139, 92, 246, 0.4);
 }
 .segmented button:active { transform: scale(0.95); }
 
@@ -291,32 +253,29 @@ select.input { appearance: none; cursor: pointer; }
 .modal-scrim {
   position: absolute;
   inset: 0;
-  background: rgba(5, 5, 8, 0.45);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(0, 0, 0, 0.55);   /* rgba optimizado, sin blur (perf) */
   opacity: 0;
   transition: opacity var(--t-med) var(--ease-out);
 }
-html.light .modal-scrim { background: rgba(15, 23, 42, 0.25); }
+html.light .modal-scrim { background: rgba(0, 0, 0, 0.3); }
 .modal-root.open .modal-scrim { opacity: 1; }
 
 .modal-panel {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%) translateY(28px) scale(0.94);
-  filter: blur(6px);
+  transform: translate(-50%, -50%) translateY(24px) scale(0.97);
   width: min(560px, calc(100vw - 32px));
   max-height: min(86vh, 780px);
   opacity: 0;
-  transition: transform var(--t-slow) var(--ease-spring), opacity var(--t-ui) var(--ease-standard), filter var(--t-ui) var(--ease-standard);
+  transition: transform var(--t-slow) var(--ease-out), opacity var(--t-ui) var(--ease-standard);
   display: flex;
   flex-direction: column;
+  will-change: transform;
 }
 .modal-root.open .modal-panel {
   opacity: 1;
   transform: translate(-50%, -50%) translateY(0) scale(1);
-  filter: blur(0);
 }
 
 .modal-head {
@@ -353,9 +312,8 @@ html.light .modal-scrim { background: rgba(15, 23, 42, 0.25); }
   transition: all var(--t-med) var(--ease-spring);
 }
 .switch input:checked + .track {
-  background: var(--violet);
-  border-color: var(--violet);
-  box-shadow: var(--glow-violet);
+  background: var(--accent-color);
+  border-color: var(--accent-color);
 }
 .switch input:checked + .track::after {
   transform: translateX(18px);
@@ -375,9 +333,8 @@ html.light .modal-scrim { background: rgba(15, 23, 42, 0.25); }
 }
 .empty .material-symbols-outlined {
   font-size: 40px;
-  color: var(--violet);
+  color: var(--accent-color);
   opacity: 0.7;
-  filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.4));
 }
 .empty p { margin: 0; font-size: 13px; max-width: 300px; }
 
@@ -399,14 +356,12 @@ html.light .modal-scrim { background: rgba(15, 23, 42, 0.25); }
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  background: var(--glass-3);
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
+  background: var(--glass-2);
   border: 1px solid var(--rim-strong);
   border-radius: var(--r-md);
   font-size: 13px;
   font-weight: 600;
-  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-float);
   animation: toast-in 0.45s var(--ease-spring) forwards;
 }
 .toast.out { animation: toast-out 0.3s var(--ease-in) forwards; }
@@ -462,8 +417,8 @@ html.light .modal-scrim { background: rgba(15, 23, 42, 0.25); }
   animation: search-expand 0.3s var(--ease-out);
 }
 .global-search-input:focus {
-  border-color: var(--primary-color);
-  box-shadow: var(--glow-primary);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .global-search-results {
   margin-top: 12px;
@@ -535,8 +490,7 @@ html.light .modal-scrim { background: rgba(15, 23, 42, 0.25); }
 
 /* Lupa activa: el icono resalta cuando hay búsqueda en curso */
 .search-active .material-symbols-outlined {
-  color: var(--primary-color);
-  filter: drop-shadow(0 0 6px var(--primary-color));
+  color: var(--accent-color);
 }
 
 /* Lupa inline de la cabecera de Notas */
@@ -568,8 +522,7 @@ html.light .modal-scrim { background: rgba(15, 23, 42, 0.25); }
   transition: border-color var(--t-med) var(--ease-out), box-shadow var(--t-med) var(--ease-out);
 }
 .materia-browse-btn:hover {
-  border-color: var(--primary-color);
-  box-shadow: var(--glow-primary);
+  border-color: color-mix(in srgb, var(--accent-color) 40%, transparent);
 }
 .materia-browse-btn > .material-symbols-outlined:first-child {
   color: var(--primary-color);
@@ -600,8 +553,8 @@ html.light .modal-scrim { background: rgba(15, 23, 42, 0.25); }
   z-index: 5;
   align-self: stretch;               /* ancho completo, más fácil de tocar */
   margin-top: 4px;
-  background: linear-gradient(135deg, var(--violet) 0%, #7c3aed 100%);
-  box-shadow: 0 -14px 18px -10px var(--bg), var(--glow-violet);
+  background: var(--accent-color);
+  box-shadow: 0 -14px 18px -10px var(--bg);
 }
 @keyframes form-drop {
   from { opacity: 0; transform: translateY(-8px); }
@@ -610,8 +563,7 @@ html.light .modal-scrim { background: rgba(15, 23, 42, 0.25); }
 /* Formulario de materia en modo edición: resaltado para que el usuario
    vea dónde está tras hacer scroll automático hasta él (móvil) */
 .materia-form--edit {
-  border-color: rgba(139, 92, 246, 0.5) !important;
-  box-shadow: var(--glow-violet);
+  border-color: color-mix(in srgb, var(--accent-color) 50%, transparent) !important;
 }
 
 /* ============================================================
@@ -656,10 +608,9 @@ html.light .modal-scrim { background: rgba(15, 23, 42, 0.25); }
 }
 .materia-chip:active { transform: scale(0.95); }
 .materia-chip.active {
-  background: var(--violet-soft);
-  border-color: rgba(139, 92, 246, 0.55);
-  color: var(--violet-bright);
-  box-shadow: var(--glow-violet);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent-color) 55%, transparent);
+  color: var(--accent-color);
 }
 /* Scroll suave al navegar dentro de modales largos (p.ej. editar materia) */
 .modal-body { scroll-behavior: smooth; }
@@ -687,9 +638,8 @@ html.light .modal-scrim { background: rgba(15, 23, 42, 0.25); }
 }
 .theme-option:hover { border-color: var(--rim-strong); color: var(--text); }
 .theme-option.active {
-  border-color: var(--primary-color);
+  border-color: var(--accent-color);
   color: var(--text);
-  box-shadow: var(--glow-primary);
 }
 .theme-swatch {
   width: 22px;
@@ -713,8 +663,8 @@ html.light .modal-scrim { background: rgba(15, 23, 42, 0.25); }
   bottom: 0;
   z-index: 5;
   flex-shrink: 0;
-  background: linear-gradient(135deg, var(--violet) 0%, #7c3aed 100%);
-  box-shadow: 0 -16px 20px -12px var(--bg), var(--glow-violet);
+  background: var(--accent-color);
+  box-shadow: 0 -16px 20px -12px var(--bg);
 }
 /* Separador visual: sombra del color del fondo que funde el borde
    superior del botón con el panel mientras el contenido pasa por debajo. */
