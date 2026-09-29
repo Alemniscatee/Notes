@@ -585,11 +585,84 @@ html.light .modal-scrim { background: rgba(15, 23, 42, 0.25); }
   margin-top: 10px;
   padding: 14px;
   animation: form-drop 0.28s var(--ease-out);
+  /* FIX sticky: .card nace con overflow:hidden, que ancla el botón
+     Guardar al panel y no al scroll del modal. Al hacerlo visible, los
+     brillos ::before/::after necesitan el radio explícito. */
+  overflow: visible;
+}
+.materia-form::before, .materia-form::after { border-radius: var(--r-lg); }
+/* Botón Guardar sticky dentro del formulario de materia: el botón
+   quedaba bajo el pliegue del modal en móvil. Con position:sticky +
+   fondo sólido SIEMPRE se ve, aunque el formulario sea largo. */
+.materia-form .sticky-save-btn {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  align-self: stretch;               /* ancho completo, más fácil de tocar */
+  margin-top: 4px;
+  background: linear-gradient(135deg, var(--violet) 0%, #7c3aed 100%);
+  box-shadow: 0 -14px 18px -10px var(--bg), var(--glow-violet);
 }
 @keyframes form-drop {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* Formulario de materia en modo edición: resaltado para que el usuario
+   vea dónde está tras hacer scroll automático hasta él (móvil) */
+.materia-form--edit {
+  border-color: rgba(139, 92, 246, 0.5) !important;
+  box-shadow: var(--glow-violet);
+}
+
+/* ============================================================
+   SELECTOR RÁPIDO DE MATERIAS (chips horizontales)
+   Usado en captura rápida (nota/tarea) y en el editor de notas.
+   ============================================================ */
+.materia-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  width: 100%;
+  margin-top: 9px;
+}
+.materia-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 13px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--rim);
+  background: var(--glass-input);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: all var(--t-fast) var(--ease-out);
+}
+.materia-chip i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px currentColor;
+}
+.materia-chip:hover {
+  border-color: var(--rim-strong);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+.materia-chip:active { transform: scale(0.95); }
+.materia-chip.active {
+  background: var(--violet-soft);
+  border-color: rgba(139, 92, 246, 0.55);
+  color: var(--violet-bright);
+  box-shadow: var(--glow-violet);
+}
+/* Scroll suave al navegar dentro de modales largos (p.ej. editar materia) */
+.modal-body { scroll-behavior: smooth; }
 
 /* ============================================================
    Selector de temas de color (Ajustes)
@@ -625,4 +698,112 @@ html.light .modal-scrim { background: rgba(15, 23, 42, 0.25); }
   flex-shrink: 0;
   border: 1px solid var(--rim-strong);
   box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.25);
+}
+
+/* ============================================================
+   BOTONES GUARDAR STICKY EN MODALES — SIEMPRE visibles
+   El .modal-body hace scroll y el botón quedaba bajo el pliegue
+   (sobre todo con el teclado móvil abierto). Con position:sticky
+   y un fondo sólido que tapa el contenido al pasar, Guardar se ve
+   y se puede tocar en todo momento.
+   ============================================================ */
+.modal-body .cap-save-sticky,
+.modal-body .sticky-save-btn {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--violet) 0%, #7c3aed 100%);
+  box-shadow: 0 -16px 20px -12px var(--bg), var(--glow-violet);
+}
+/* Separador visual: sombra del color del fondo que funde el borde
+   superior del botón con el panel mientras el contenido pasa por debajo. */
+@media (max-width: 720px) {
+  .modal-body .cap-save-sticky,
+  .modal-body .sticky-save-btn {
+    position: sticky;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ============================================================
+   MODALES MÓVILES — bottom-sheet a pantalla casi completa (≤720px)
+   Nacen fuera de pantalla (translateY(105%)) para que la animación
+   de entrada siempre se vea, y ocupan el alto útil completo para
+   que el botón Guardar sea alcanzable aunque el formulario sea largo.
+   ============================================================ */
+@media (max-width: 720px) {
+  .modal-panel {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    transform: translateY(105%);           /* fuera de pantalla: siempre anima */
+    filter: none;
+    width: 100vw;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 24px);
+    height: calc(100dvh - env(safe-area-inset-top, 0px) - 24px);
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .modal-root.open .modal-panel {
+    transform: translateY(0);
+  }
+  /* Excepción: overlays pequeños (p.ej. micrófono de la Bóveda)
+     se mantienen centrados como tarjeta flotante */
+  .modal-panel--center {
+    left: 50%;
+    right: auto;
+    top: 50%;
+    bottom: auto;
+    height: auto;
+    width: min(420px, calc(100vw - 32px));
+    border: 1px solid var(--rim-strong);
+    border-radius: var(--r-xl);
+    transform: translate(-50%, -50%) translateY(28px) scale(0.94);
+  }
+  .modal-root.open .modal-panel--center {
+    transform: translate(-50%, -50%) translateY(0) scale(1);
+  }
+  .modal-body {
+    padding: 4px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  .modal-head {
+    position: relative;
+    padding: 14px 16px 10px;
+  }
+  .modal-head h2 { font-size: 16px; }
+  .modal-foot {
+    padding: 10px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+  /* agarre tipo sheet */
+  .modal-head::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 44px;
+    height: 4px;
+    border-radius: 99px;
+    background: var(--rim-strong);
+    pointer-events: none;
+  }
+}
+
+/* ============================================================
+   INPUTS MÓVILES — font-size ≥16px evita el auto-zoom de iOS al enfocar
+   ============================================================ */
+@media (max-width: 720px) {
+  .input, textarea.input, select.input {
+    font-size: 16px;
+    padding: 12px 14px;
+  }
+  .editor-title { font-size: 20px; }
+  .global-search-input { font-size: 16px; }
+  #notesSearch { font-size: 16px; }
+  #vaultInput { font-size: 16px; }
 }

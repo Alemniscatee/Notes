@@ -13,6 +13,7 @@ const Capture = (() => {
   let listening = false;
   let parsed = null;          // resultado de Gemini listo para guardar
   let transcript = '';
+  let editingId = null;       // id de tarea en edición (null = crear nueva)
 
   const $ = id => document.getElementById(id);
 
@@ -40,6 +41,7 @@ const Capture = (() => {
   }
 
   function open() {
+    editingId = null;         // abrir normal = crear, nunca heredar una edición previa
     setMode('manual');
     UI.openModal('captureModal');
     refreshDatalist();
@@ -86,23 +88,46 @@ const Capture = (() => {
     setTimeout(() => { if (!listening) toggleListen(); }, 250);
   }
 
+  /* Pre-carga el modal para EDITAR una tarea existente:
+     Guardar actualizará esa tarea (no creará una nueva). */
+  function beginEdit(task) {
+    capType = 'tarea';
+    $('capTypeSeg').querySelectorAll('button').forEach(x =>
+      x.classList.toggle('active', x.dataset.type === 'tarea'));
+    $('capFechaField').hidden = false;
+    $('capContenidoField').hidden = true;
+    $('capTitulo').value = task.titulo || '';
+    $('capMateria').value = task.materia || '';
+    // Sincroniza el estado activo del selector de chips de materia
+    $('capMateria').dispatchEvent(new Event('input', { bubbles: true }));
+    if (task.vence) {
+      const d = new Date(task.vence);
+      const p = n => String(n).padStart(2, '0');
+      $('capFecha').value = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+    editingId = task._id;
+  }
+
   /* ---------------- Manual ---------------- */
   async function saveManual() {
     const titulo = $('capTitulo').value.trim();
     if (!titulo) { UI.toast('Escribe un título', 'err'); return; }
     const materia = $('capMateria').value.trim() || 'General';
     await App.ensureSubject(materia);
+    const wasEditing = !!editingId;
 
     if (capType === 'tarea') {
       const vence = $('capFecha').value || null;
-      await Store.saveTask({ titulo, materia, vence, contenido: '' });
-      UI.toast('Tarea guardada ✓', 'ok');
+      // Con editingId ACTUALIZA la tarea; sin él crea una nueva
+      await Store.saveTask({ id: editingId || undefined, titulo, materia, vence, contenido: '' });
+      UI.toast(wasEditing ? 'Tarea actualizada ✓' : 'Tarea guardada ✓', 'ok');
     } else {
       const contenido = $('capContenidoQuick').value.trim() || titulo;
       await Store.saveNote({ titulo, materia, contenido });
       UI.toast('Nota guardada ✓', 'ok');
     }
 
+    editingId = null;
     $('capTitulo').value = '';
     $('capFecha').value = '';
     $('capContenidoQuick').value = '';
@@ -242,5 +267,5 @@ const Capture = (() => {
     App.refreshAll();
   }
 
-  return { init, open, openVoice, setMode, startListening };
+  return { init, open, openVoice, setMode, startListening, beginEdit };
 })();

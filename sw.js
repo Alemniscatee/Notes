@@ -5,7 +5,7 @@
    - Gemini/API: network-only (no cacheamos respuestas privadas)
    ============================================================ */
 
-const VERSION = 'aura-v2.3.1';
+const VERSION = 'aura-v2.4.1';
 const SHELL_CACHE = `${VERSION}-shell`;
 const CDN_CACHE = `${VERSION}-cdn`;
 
@@ -30,6 +30,7 @@ const SHELL_ASSETS = [
   './js/vault.js',
   './js/timeline.js',
   './js/timetable.js',
+  './js/materia-picker.js',
   './js/notifications.js',
   './js/app.js',
   './icons/icon.svg',

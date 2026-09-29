@@ -40,6 +40,7 @@ const App = (() => {
     }
 
     currentView = name;
+    document.body.classList.toggle('editor-focus', name === 'editor');
     document.querySelectorAll('.view').forEach(v =>
       v.classList.toggle('active', v.id === `view-${name}`));
     document.querySelectorAll('.nav-item').forEach(n =>
@@ -233,6 +234,7 @@ const App = (() => {
     Timetable.init();
     Vault.init();
     Timeline.init();
+    MateriaPicker.init();
     Notify.start();
     Notify.onNotificationClickFocus();
 
@@ -447,16 +449,8 @@ const App = (() => {
     const t = tasksCache.find(x => x._id === id);
     if (!t) return;
     Capture.open();
-    // Pre-carga en modo manual tipo tarea
-    setTimeout(() => {
-      $('capTitulo').value = t.titulo || '';
-      $('capMateria').value = t.materia || '';
-      if (t.vence) {
-        const d = new Date(t.vence);
-        const p = n => String(n).padStart(2, '0');
-        $('capFecha').value = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-      }
-    }, 150);
+    // Pre-carga en modo manual tipo tarea (sin retardo arbitrario)
+    setTimeout(() => Capture.beginEdit(t), 0);
   }
 
   async function toggleTask(id) {
@@ -750,8 +744,12 @@ const App = (() => {
     $('materiasListBtn').addEventListener('click', openMaterias);
     $('materiaAddBtn').addEventListener('click', addMateria);
     $('materiaCancelEditBtn').addEventListener('click', resetMateriaForm);
-    $('materiaNombre').addEventListener('keydown', e => {
-      if (e.key === 'Enter') addMateria();
+    // Enter guarda en cualquier campo del formulario de materia
+    ['materiaNombre', 'materiaCodigo', 'materiaProfesorNombre'].forEach(fid => {
+      const el = document.getElementById(fid);
+      if (el) el.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); addMateria(); }
+      });
     });
 
     // Desplegable de gestión (icono browse): muestra/oculta el formulario
@@ -762,9 +760,13 @@ const App = (() => {
   function toggleMateriaForm() {
     const panel = $('materiaFormPanel');
     const open = panel.hidden;
-    panel.hidden = !open;
-    $('materiaBrowseToggle').setAttribute('aria-expanded', String(open));
+    setMateriaFormOpen(open);
     if (open) $('materiaNombre').focus();
+  }
+
+  /* Refleja el modo (crear/editar) en el borde del formulario */
+  function updateMateriaFormMode() {
+    $('materiaFormPanel')?.classList.toggle('materia-form--edit', !!editingMateriaId);
   }
 
   function setMateriaFormOpen(open) {
@@ -772,6 +774,15 @@ const App = (() => {
     if (!panel) return;
     panel.hidden = !open;
     $('materiaBrowseToggle').setAttribute('aria-expanded', String(open));
+    updateMateriaFormMode();
+    if (open) {
+      /* FIX móvil: el formulario puede quedar bajo el pliegue del modal
+         (sobre todo al abrirlo desde "Editar materia", cuando la lista ya
+         llenó el modal). Lo subimos a la vista para que Guardar sea visible. */
+      requestAnimationFrame(() => {
+        try { panel.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (e) {}
+      });
+    }
   }
 
   function resetMateriaForm() {
@@ -785,6 +796,7 @@ const App = (() => {
     $('materiaProfesorDescripcion').value = '';
     $('materiaColor').value = '#8b5cf6';
     $('materiaBrowseLabel').textContent = 'Crear / editar materia';
+    updateMateriaFormMode();
   }
 
   function openMaterias() {
@@ -847,7 +859,7 @@ const App = (() => {
     $('materiaProfesorDescripcion').value = s.profesorDescripcion || '';
     $('materiaColor').value = s.color || '#8b5cf6';
     $('materiaBrowseLabel').textContent = 'Editando: ' + s.nombre;
-    setMateriaFormOpen(true);    // el desplegable browse abre el formulario en edición
+    setMateriaFormOpen(true);    // abre el desplegable y hace scroll hasta el formulario
     $('materiaNombre').focus();
   }
 
@@ -856,6 +868,7 @@ const App = (() => {
     if (!name) { UI.toast('Escribe el nombre de la materia', 'err'); return; }
 
     const btn = $('materiaAddBtn');
+    if (btn.disabled) return;    // evita doble guardado por doble toque
     btn.disabled = true;
     try {
       // Persistencia directa en PouchDB (mantiene la API Store/DB intacta)
@@ -1055,6 +1068,8 @@ const App = (() => {
     subjectsCache = subjects;
     tasksCache = tasks;
     notesCache = notes;
+    // El selector de materias por chips sigue a las materias en vivo
+    if (window.MateriaPicker) MateriaPicker.refresh();
     renderDashboard();
     if (currentView === 'tasks') renderTasks();
     if (currentView === 'notes') renderNotes();

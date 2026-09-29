@@ -365,8 +365,13 @@
         <button class="chip edt-split-btn" id="editorSplitBtn" title="Dividir pantalla (PC)">
           <span class="material-symbols-outlined" style="font-size:15px;">splitscreen</span> Split
         </button>
-        <button class="btn btn--primary btn--sm" id="editorSaveBtn">Guardar</button>
       </div>
+
+      <!-- Guardar flotante: SIEMPRE visible (no depende de la topbar,
+           que puede recortarse con overflow:hidden en pantallas estrechas) -->
+      <button class="edt-save-fab" id="editorSaveBtn" aria-label="Guardar nota">
+        <span class="material-symbols-outlined">save</span> Guardar
+      </button>
 
       <!-- Fila 2: workspace (sidebar + paneles) -->
       <div class="edt-workspace">
@@ -390,6 +395,8 @@
               <button class="chip" id="editorImageBtn">Imagen</button>
               <button class="chip" id="editorPreviewBtn">Vista previa</button>
               <input type="file" id="editorImageInput" accept="image/*" multiple hidden>
+              <!-- Selector rápido de materia a un toque -->
+              <div class="materia-chips" id="editorMateriaChips" role="listbox" aria-label="Elegir materia"></div>
             </div>
             <textarea class="input" id="editorContent" placeholder="Escribe en Markdown… soporta [[Enlaces]], **negrita**, tablas, bloques de código y diagramas ```mermaid" style="min-height:40vh;"></textarea>
             <div id="editorPreview" class="editor-preview" hidden></div>
@@ -654,8 +661,11 @@
           </div>
           <div class="field">
             <label for="capMateria">Materia</label>
-            <input class="input" id="capMateria" list="materiasDatalist" placeholder="Ej: Cálculo II">
+            <input class="input" id="capMateria" list="materiasDatalist" placeholder="Ej: Cálculo II" autocomplete="off">
             <datalist id="materiasDatalist"></datalist>
+            <!-- Selector rápido: todas tus materias a un toque (sin escribir) -->
+            <div class="materia-chips" id="capMateriaChips" role="listbox" aria-label="Elegir materia"></div>
+            <p class="hint">Toca una materia para asignarla, o escribe una nueva arriba.</p>
           </div>
           <div class="inline-fields">
             <div class="field" id="capFechaField">
@@ -667,7 +677,7 @@
               <textarea class="input" id="capContenidoQuick" rows="3" placeholder="Apunte rápido…"></textarea>
             </div>
           </div>
-          <button class="btn btn--primary" id="capSaveBtn">Guardar</button>
+          <button class="btn btn--primary cap-save-sticky" id="capSaveBtn">Guardar</button>
         </div>
 
         <!-- Voice panel -->
@@ -732,6 +742,7 @@
             <span id="materiaBrowseLabel">Crear / editar materia</span>
             <span class="material-symbols-outlined materia-browse-chevron">expand_more</span>
           </button>
+          <p class="hint">Al tocar ✏️ en una materia de la lista, el formulario se abre aquí arriba con sus datos — toca <b>Guardar cambios</b> para aplicarlos.</p>
 
           <!-- Formulario oculto por defecto: solo visible al pulsar el botón browse -->
           <div class="card materia-form" id="materiaFormPanel" hidden>
@@ -763,7 +774,8 @@
               <label for="materiaProfesorDescripcion">Descripción del profesor</label>
               <textarea class="input" id="materiaProfesorDescripcion" rows="2" placeholder="Ej: Tutora de la materia · consultas jueves 10–12 h · oficina 3B"></textarea>
             </div>
-            <button class="btn btn--primary" id="materiaAddBtn">Guardar Materia</button>
+            <!-- Botón sticky: SIEMPRE visible aunque el formulario sea largo -->
+            <button class="btn btn--primary sticky-save-btn" id="materiaAddBtn">Guardar Materia</button>
           </div>
         <div id="materiasList" class="list"></div>
         <p class="hint">Al eliminar una materia, sus tareas y notas no se borran. Eliminar una clase del horario no afecta la materia.</p>
@@ -774,7 +786,7 @@
   <!-- ================= Class Modal (Horario Académico) ================= -->
   <div class="modal-root" id="classModal">
     <div class="modal-scrim" data-close></div>
-    <div class="modal-panel card card--float" style="width:min(480px, calc(100vw - 32px));">
+    <div class="modal-panel card card--float">
       <div class="modal-head">
         <div>
           <h2 id="clsModalTitle">Nueva clase</h2>
@@ -829,7 +841,7 @@
   <!-- ================= Vault mic listening overlay ================= -->
   <div class="modal-root" id="vaultMicModal">
     <div class="modal-scrim" data-close></div>
-    <div class="modal-panel card card--float" style="width:min(420px, calc(100vw - 32px));">
+    <div class="modal-panel card card--float modal-panel--center">
       <div class="modal-body" style="align-items:center;text-align:center;">
         <button class="voice-orb listening" id="vaultOrbStop" aria-label="Detener">
           <span class="material-symbols-outlined">mic</span>
@@ -854,6 +866,7 @@
   <script src="js/vault.js"></script>
   <script src="js/timeline.js"></script>
   <script src="js/timetable.js"></script>
+  <script src="js/materia-picker.js"></script>
   <script src="js/notifications.js"></script>
   <script src="js/app.js"></script>
 </body>

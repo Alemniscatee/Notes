@@ -626,6 +626,44 @@
     .edt-pane-b { display: none !important; }
   }
 
+  /* ============================================================
+     BOTÓN GUARDAR FLOTANTE DEL EDITOR — SIEMPRE visible
+     Vive fuera de la topbar (que tiene overflow:hidden y puede
+     recortarlo): pill fija en la esquina inferior derecha.
+     ============================================================ */
+  .edt-save-fab {
+    position: fixed;
+    right: calc(14px + env(safe-area-inset-right, 0px));
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    z-index: 70;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 44px;
+    padding: 0 18px 0 15px;
+    border: 1px solid rgba(139, 92, 246, 0.45);
+    border-radius: var(--r-full);
+    background: linear-gradient(135deg, var(--violet) 0%, #7c3aed 100%);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: var(--glow-violet), 0 10px 26px -8px rgba(0, 0, 0, 0.55);
+    transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out), opacity var(--t-fast) var(--ease-out);
+  }
+  .edt-save-fab .material-symbols-outlined { font-size: 18px; }
+  /* En PC, el FAB se alinea al borde derecho de la columna de contenido (1200px) */
+  @media (min-width: 1232px) {
+    .edt-save-fab { right: calc((100vw - 1200px) / 2 + 16px); }
+  }
+  .edt-save-fab:hover { box-shadow: var(--glow-hover), 0 12px 30px -8px rgba(0, 0, 0, 0.6); }
+  .edt-save-fab:active { transform: scale(0.95); }
+  .edt-save-fab[hidden] { display: none; }
+
   /* Diagramas Mermaid renderizados en la vista previa */
   .mermaid-box {
     display: flex;
@@ -877,3 +915,55 @@
 .mono { font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 .mt-8 { margin-top: 8px; } .mt-16 { margin-top: 16px; } .mb-8 { margin-bottom: 8px; }
 .list { display: flex; flex-direction: column; gap: 10px; }
+
+/* ============================================================
+   ADAPTACIÓN MÓVIL GLOBAL (≤720px) — vistas, editor y filas
+   ============================================================ */
+@media (max-width: 720px) {
+  /* Cabeceras de vista: título compacto y acciones envolvibles */
+  .view-head { margin-bottom: 12px; gap: 8px; }
+  .view-title { font-size: 21px; }
+  .view-sub { font-size: 11px; }
+  .head-left { gap: 8px; }
+
+  /* Dashboard: stat cards más compactas */
+  .dash-grid { gap: 10px; }
+  .stat-card { padding: 13px; }
+  .stat-value { font-size: 23px; }
+
+  /* Filas de materia: los botones de acción no se salen de pantalla */
+  .materia-row { flex-wrap: wrap; }
+  .materia-row .muted { flex-basis: 100%; order: 3; }
+
+  /* Ajustes: filas envolvibles */
+  .settings-group { padding: 15px; }
+  .settings-group .row { flex-wrap: wrap; }
+
+  /* Notas: tarjeta a ancho completo */
+  .notes-grid { grid-template-columns: 1fr; gap: 11px; }
+
+  /* Calendario: título más compacto */
+  .cal-title { font-size: 15px; min-width: 0; }
+
+  /* Editor: topbar envolvible, sin breadcrumb en móvil, área de
+     escritura con aire inferior para que el teclado no tape nada */
+  .edt-topbar { flex-wrap: wrap; row-gap: 8px; }
+  .edt-crumb { display: none; }
+  #editorContent { padding-bottom: 84px; }
+
+  /* Guardar flotante del editor: más aire en móvil */
+  .edt-save-fab { right: 12px; bottom: 18px; }
+
+  /* La lista de notas del editor deja de ser sticky (mejor scroll) */
+  .edt-side { position: static; }
+
+  /* El dock flotante no tapa contenido al final del scroll */
+  .app-main { padding-bottom: calc(var(--fab-zone) + 6px); }
+}
+
+/* Teléfonos estrechos: filas de filtros apiladas */
+@media (max-width: 420px) {
+  .segmented { width: 100%; }
+  .row.mb-8 { flex-direction: column; align-items: stretch; }
+  .row.mb-8 .input { width: 100% !important; }
+}

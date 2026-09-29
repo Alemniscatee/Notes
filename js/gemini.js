@@ -77,6 +77,81 @@ const Gemini = (() => {
   "contenido": string
 }`;
 
+  /* ------------------------------------------------------------
+     Matching difuso de materias: normaliza acentos/mayúsculas y
+     compara por igualdad, contención o similitud de tokens/n-gramas.
+     Devuelve el nombre REAL de la materia o null si nada encaja.
+  ------------------------------------------------------------ */
+  function normalizeStr(s) {
+    return (s || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // quita acentos
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function levenshtein(a, b) {
+    if (a === b) return 0;
+    const m = a.length, n = b.length;
+    if (!m || !n) return m + n;
+    let prev = Array.from({ length: n + 1 }, (_, i) => i);
+    for (let i = 1; i <= m; i++) {
+      const cur = [i];
+      for (let j = 1; j <= n; j++) {
+        cur[j] = Math.min(
+          prev[j] + 1,
+          cur[j - 1] + 1,
+          prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+        );
+      }
+      prev = cur;
+    }
+    return prev[n];
+  }
+
+  function diceBigram(a, b) {
+    if (a.length < 2 || b.length < 2) return a === b ? 1 : 0;
+    const grams = s => {
+      const set = new Set();
+      for (let i = 0; i < s.length - 1; i++) set.add(s.slice(i, i + 2));
+      return set;
+    };
+    const A = grams(a), B = grams(b);
+    let inter = 0;
+    for (const g of A) if (B.has(g)) inter++;
+    return (2 * inter) / (A.size + B.size);
+  }
+
+  function matchSubject(name, subjects) {
+    const list = (subjects || []).filter(s => s && s.nombre);
+    if (!list.length) return null;
+    const target = normalizeStr(name);
+    if (!target || target === 'general') return null;
+
+    let best = null, bestScore = 0;
+    for (const s of list) {
+      const cand = normalizeStr(s.nombre);
+      if (!cand) continue;
+      let score = 0;
+      if (cand === target) score = 1;
+      else if (cand.includes(target) || target.includes(cand)) score = 0.93;
+      else {
+        const tTokens = target.split(' ').filter(t => t.length > 2);
+        const cTokens = cand.split(' ').filter(t => t.length > 2);
+        const shared = tTokens.filter(t => cTokens.includes(t)).length;
+        const tokenScore = (tTokens.length && cTokens.length)
+          ? shared / Math.min(tTokens.length, cTokens.length) : 0;
+        const dist = levenshtein(cand, target);
+        const maxLen = Math.max(cand.length, target.length);
+        const levScore = 1 - dist / maxLen;
+        score = Math.max(tokenScore * 0.9, levScore, diceBigram(cand, target) * 0.95);
+      }
+      if (score > bestScore) { bestScore = score; best = s.nombre; }
+    }
+    return bestScore >= 0.6 ? best : null;
+  }
+
   async function parseIntention(transcript, subjects, now) {
     const subjList = subjects.map(s => s.nombre).join(', ') || '(ninguna todavía)';
     const nowStr = now.toLocaleString('es-ES', {
@@ -92,7 +167,7 @@ ${PARSE_SCHEMA}
 
 REGLAS:
 - "tipo": "tarea" si es algo por hacer/entregar/examen/recordatorio con fecha; "nota" si es apunte/concepto/resumen.
-- "materia": elige la materia MÁS PARECIDA de esta lista: [${subjList}]. Si ninguna encaja usa "General".
+- "materia": elige la materia MÁS PARECIDA de esta lista: [${subjList}]. Copia el nombre EXACTO de la lista (sin inventar). Si ninguna encaja usa "General".
 - "titulo": máximo 80 caracteres, claro y en imperativo si es tarea.
 - "fecha_recordatorio": ISO 8601 ("YYYY-MM-DDTHH:MM:SS") o null si no hay fecha explícita/derivabile. Hoy es ${nowStr}.
   Ejemplos: "mañana a las 5pm" -> mañana 17:00; "el viernes" -> próximo viernes 09:00; "para el 12 de octubre" -> "YYYY-10-12T09:00:00".
@@ -112,6 +187,11 @@ REGLAS:
     // Normalize
     obj.tipo = obj.tipo === 'tarea' ? 'tarea' : 'nota';
     obj.materia = (obj.materia || 'General').toString().slice(0, 60);
+    /* Blindaje anti-alucinación: si Gemini inventó una materia que no
+       existe, la reemplazamos por la más parecida de la lista real.
+       Así los dictados siempre caen en una materia reconocible. */
+    const matched = matchSubject(obj.materia, subjects);
+    obj.materia = matched || 'General';
     obj.titulo = (obj.titulo || 'Sin título').toString().slice(0, 120);
     if (obj.fecha_recordatorio === '') obj.fecha_recordatorio = null;
     if (obj.fecha_recordatorio) {
