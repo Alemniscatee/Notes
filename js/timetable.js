@@ -1,32 +1,33 @@
 /* ============================================================
    AURA — timetable.js
-   Vista "Horario Académico": cuadrícula semanal fija (Lun–Sáb)
-   dividida en bloques de 30 min. Las clases se guardan en
-   PouchDB como docs type:'class' y se renderizan como eventos
-   posicionados absolutamente sobre la rejilla.
+   Vista "Horario Académico": MATRIZ SEMANAL fija de 8 columnas
+   (Hora + Lunes..Domingo) con filas de 1 hora de 07:00 a 22:00.
+   La retícula SIEMPRE se renderiza (con o sin clases). Las
+   clases vienen de Supabase (Store.getClasses) y se pintan
+   dentro de su celda con un bloque sólido del color de la
+   materia: nombre · aula · profesor.
    Depende de: Store, UI, App.
    ============================================================ */
 
 const Timetable = (() => {
   const $ = id => document.getElementById(id);
 
-  /* ---------------- Config de la rejilla ---------------- */
+  /* ---------------- Config de la matriz ---------------- */
   const START_HOUR = 7;    // 07:00
   const END_HOUR = 22;     // hasta 22:00
-  const SLOT_MIN = 30;     // bloques de 30 minutos
-  const DAYS = [1, 2, 3, 4, 5, 6]; // Lunes..Sábado
-  const DAY_LABELS = { 1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb' };
-
-  const TOTAL_MIN = (END_HOUR - START_HOUR) * 60;
-  const ROWS = (END_HOUR - START_HOUR) * (60 / SLOT_MIN);
-
-  let classesCache = [];
-  let editingId = null;
+  const ROWS = END_HOUR - START_HOUR;          // filas de 1 hora
+  const DAYS = [1, 2, 3, 4, 5, 6, 0];          // L M X J V S D (getDay())
+  const DAY_HEADER = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
 
   const toMin = hm => {
     const [h, m] = String(hm || '0:0').split(':').map(Number);
     return (h || 0) * 60 + (m || 0);
   };
+  const p2 = n => String(n).padStart(2, '0');
+  const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+
+  let classesCache = [];
+  let editingId = null;
 
   /* ---------------- Inicialización ---------------- */
   function init() {
@@ -41,13 +42,11 @@ const Timetable = (() => {
       const cell = e.target.closest('.tt-cell');
       if (!cell) return;
       const day = Number(cell.dataset.day);
-      const slot = Number(cell.dataset.slot);
-      const startMin = START_HOUR * 60 + slot * SLOT_MIN;
-      const p = n => String(n).padStart(2, '0');
+      const hour = Number(cell.dataset.hour);
       openClassModal(null, {
         dia: day,
-        inicio: `${p(Math.floor(startMin / 60))}:${p(startMin % 60)}`,
-        fin: `${p(Math.floor((startMin + 60) / 60))}:${p((startMin + 60) % 60)}`
+        inicio: `${p2(hour)}:00`,
+        fin: `${p2(Math.min(hour + 1, END_HOUR))}:00`
       });
     });
 
@@ -61,9 +60,9 @@ const Timetable = (() => {
     });
   }
 
-  /* ---------------- Render del grid semanal ---------------- */
+  /* ---------------- Render de la matriz semanal ---------------- */
   async function render() {
-    classesCache = await Store.getClasses();
+    classesCache = await Store.getClasses().catch(() => []);
     renderGrid();
     renderLegend();
 
@@ -73,54 +72,61 @@ const Timetable = (() => {
 
   function renderGrid() {
     const grid = $('ttGrid');
-    const p = n => String(n).padStart(2, '0');
+    const todayDow = new Date().getDay();
 
     let html = '';
 
-    // Cabecera: esquina + días
+    // Fila de encabezados: esquina + los 7 días (SIEMPRE visible)
     html += `<div class="tt-corner"></div>`;
-    for (const d of DAYS) {
-      const isToday = new Date().getDay() === d;
-      html += `<div class="tt-dow ${isToday ? 'today' : ''}">${DAY_LABELS[d]}</div>`;
-    }
+    DAYS.forEach((d, i) => {
+      html += `<div class="tt-dow ${d === todayDow ? 'today' : ''}">${DAY_HEADER[i]}${d === todayDow ? '<span class="tt-dow-dot"></span>' : ''}</div>`;
+    });
 
-    // Filas de horas: etiqueta + 12 celdas de 30 min por hora
-    for (let r = 0; r < ROWS; r++) {
-      if (r % 2 === 0) {
-        const hh = START_HOUR + r / 2;
-        html += `<div class="tt-time">${p(hh)}:00</div>`;
-      }
-      for (const d of DAYS) {
-        html += `<div class="tt-cell" data-day="${d}" data-slot="${r}"></div>`;
-      }
-    }
-
-    // Eventos posicionados absolutamente: un bloque por CADA día asignado
+    // Índice por día/hora: { '3|14': [cls, ...] } para pintar dentro de la celda
+    const byCell = {};
     for (const cls of classesCache) {
-      const color = UI.colorFor(cls.materia, App.subjectsCache);
-      const startM = Math.max(toMin(cls.inicio), START_HOUR * 60);
-      const endM = Math.min(Math.max(toMin(cls.fin), startM + SLOT_MIN), END_HOUR * 60);
-      const top = ((startM - START_HOUR * 60) / TOTAL_MIN) * 100;
-      const height = ((endM - startM) / TOTAL_MIN) * 100;
-      const dias = (cls.dias || []).filter(d => DAYS.includes(d));
-      if (!dias.length) continue;
+      const sM = toMin(cls.inicio);
+      const eM = Math.max(toMin(cls.fin), sM + 30);
+      const hStart = clamp(Math.floor(sM / 60), START_HOUR, END_HOUR - 1);
+      const hEnd = clamp(Math.ceil(eM / 60) - 1, START_HOUR, END_HOUR - 1);
+      for (const d of (cls.dias || [])) {
+        for (let h = hStart; h <= hEnd; h++) {
+          (byCell[`${d}|${h}`] = byCell[`${d}|${h}`] || []).push(cls);
+        }
+      }
+    }
 
-      for (const d of dias) {
-        html += `
-        <div class="tt-event" data-id="${cls._id}"
-             style="left:calc(44px + (100% - 44px) / ${DAYS.length} * ${d - 1} + 2px);
-                    width:calc((100% - 44px) / ${DAYS.length} - 4px);
-                    top:calc(${top.toFixed(3)}% + 1px);
-                    height:calc(${height.toFixed(3)}% - 2px);
-                    --ev-color:${color};">
-          <div class="tt-ev-time">${cls.inicio} – ${cls.fin}</div>
-          <div class="tt-ev-title">${UI.escapeHTML(cls.materia || 'Clase')}</div>
-          ${cls.aula ? `<div class="tt-ev-aula"><span class="material-symbols-outlined">location_on</span>${UI.escapeHTML(cls.aula)}</div>` : ''}
-        </div>`;
+    // Filas de horas: etiqueta + 7 celdas (la retícula existe SIEMPRE)
+    for (let r = 0; r < ROWS; r++) {
+      const hour = START_HOUR + r;
+      html += `<div class="tt-time">${p2(hour)}:00</div>`;
+      for (const d of DAYS) {
+        const items = byCell[`${d}|${hour}`];
+        html += `<div class="tt-cell" data-day="${d}" data-hour="${hour}">`;
+        if (items && items.length) {
+          const cls = items[0]; // un bloque por celda (la clase ocupa su franja)
+          const color = UI.colorFor(cls.materia, App.subjectsCache);
+          const prof = subjectProfesor(cls);
+          html += `
+          <button class="tt-event" data-id="${cls._id}" style="--ev-color:${color};">
+            <span class="tt-ev-title">${UI.escapeHTML(cls.materia || 'Clase')}</span>
+            <span class="tt-ev-meta">${p2(Math.floor(toMin(cls.inicio) / 60))}:${p2(toMin(cls.inicio) % 60)}–${p2(Math.floor(toMin(cls.fin) / 60))}:${p2(toMin(cls.fin) % 60)}${cls.aula ? ' · ' + UI.escapeHTML(cls.aula) : ''}</span>
+            ${prof ? `<span class="tt-ev-meta">${UI.escapeHTML(prof)}</span>` : ''}
+          </button>`;
+        }
+        html += `</div>`;
       }
     }
 
     grid.innerHTML = html;
+  }
+
+  /* Profesor de la materia (desde el catálogo persistido) */
+  function subjectProfesor(cls) {
+    const s = (App.subjectsCache || []).find(x =>
+      x._id === cls.materiaId ||
+      (x.nombre || '').toLowerCase() === (cls.materia || '').toLowerCase());
+    return s ? (s.profesorNombre || s.profesor || '') : '';
   }
 
   function renderLegend() {
@@ -129,7 +135,7 @@ const Timetable = (() => {
     if (!used.length) { legend.innerHTML = ''; return; }
     legend.innerHTML = used.map(m => {
       const c = UI.colorFor(m, App.subjectsCache);
-      return `<span class="tt-chip"><i style="background:${c};box-shadow:0 0 8px ${c};"></i>${UI.escapeHTML(m)}</span>`;
+      return `<span class="tt-chip"><i style="background:${c};"></i>${UI.escapeHTML(m)}</span>`;
     }).join('');
   }
 
@@ -150,7 +156,7 @@ const Timetable = (() => {
     $('clsModalTitle').textContent = data ? 'Editar clase' : 'Nueva clase';
     $('clsDeleteBtn').hidden = !data;
 
-    const diasArr = data ? (data.dias || []) : (preset && preset.dia ? [preset.dia] : [1]);
+    const diasArr = data ? (data.dias || []) : (preset && preset.dia !== undefined ? [preset.dia] : [1]);
     $('clsDias').querySelectorAll('input').forEach(cb => {
       cb.checked = diasArr.includes(Number(cb.value));
     });
@@ -166,7 +172,7 @@ const Timetable = (() => {
   async function saveClass() {
     const matId = $('clsMateria').value;
     if (!matId) {
-      UI.toast('Primero crea una materia (📚 Gestionar Materias)', 'err', 4500);
+      UI.toast('Primero crea una materia (Gestionar Materias)', 'err', 4500);
       return;
     }
     const subject = (App.subjectsCache || []).find(s => s._id === matId);

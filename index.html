@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
   <title>Aura Life Dashboard</title>
   <meta name="description" content="Dashboard académico offline-first: notas, tareas, horario de clases, calendario y asistente IA para tu vida universitaria.">
-  <meta name="theme-color" content="#0d0d11">
+  <meta name="theme-color" content="#121212">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -46,6 +46,19 @@
         <button class="icon-btn menu-btn" id="menuBtn" aria-label="Abrir o cerrar el menú lateral" aria-expanded="false" aria-controls="sidebar" title="Menú">
           <span class="material-symbols-outlined">menu</span>
         </button>
+      </div>
+
+      <!-- Buscador global de notas (lupa) — en la barra principal -->
+      <div class="global-search header-search" id="globalSearchWrap">
+        <button class="icon-btn global-search-toggle" id="globalSearchToggle" aria-label="Buscar notas" aria-expanded="false" aria-controls="globalSearchInput" title="Buscar en tus notas (Esc para cerrar)">
+          <span class="material-symbols-outlined">search</span>
+        </button>
+        <input class="input global-search-input" id="globalSearchInput" type="search"
+               placeholder="Buscar en todas tus notas…" autocomplete="off" hidden>
+        <button class="icon-btn global-search-clear" id="globalSearchClear" aria-label="Limpiar búsqueda" hidden>
+          <span class="material-symbols-outlined">close</span>
+        </button>
+        <div class="card global-search-results" id="globalSearchResults" hidden></div>
       </div>
 
       <div class="header-actions">
@@ -114,20 +127,6 @@
           <h1 class="view-title">Habla, <span class="accent" id="dashName">Estudiante</span></h1>
         </div>  
       </div>
-
-      <!-- Buscador global de notas (lupa) -->
-      <div class="global-search" id="globalSearchWrap">
-        <button class="icon-btn global-search-toggle" id="globalSearchToggle" aria-label="Buscar notas" aria-expanded="false" aria-controls="globalSearchInput" title="Buscar en tus notas">
-          <span class="material-symbols-outlined">search</span>
-        </button>
-        <input class="input global-search-input" id="globalSearchInput" type="search"
-               placeholder="Buscar en todas tus notas… (título y contenido)" autocomplete="off" hidden>
-        <button class="icon-btn global-search-clear" id="globalSearchClear" aria-label="Limpiar búsqueda" hidden>
-          <span class="material-symbols-outlined">close</span>
-        </button>
-      </div>
-
-      <div class="card global-search-results" id="globalSearchResults" hidden></div>
 
       <div class="dash-grid">
         <div class="card card--hover stat-card" data-goto="tasks">
@@ -231,7 +230,7 @@
         </div>
         <div id="calDow" class="cal-grid"></div>
         <div id="calGrid" class="cal-grid" style="margin-top:6px;"></div>
-        <div id="calWeekView" class="list mt-16" hidden></div>
+        <div id="calWeekView" class="week-grid" hidden></div>
       </div>
 
       <div class="card mt-16" style="padding:14px;">
@@ -816,6 +815,7 @@
             <label class="chk"><input type="checkbox" value="4"><span>J</span></label>
             <label class="chk"><input type="checkbox" value="5"><span>V</span></label>
             <label class="chk"><input type="checkbox" value="6"><span>S</span></label>
+            <label class="chk"><input type="checkbox" value="0"><span>D</span></label>
           </div>
         </div>
       </div>

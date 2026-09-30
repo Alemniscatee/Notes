@@ -2,31 +2,28 @@
    AURA — Components: glass surfaces, buttons, chips, modals
    ============================================================ */
 
-/* ---------- Card tiers: superficie plana, hairline + sombra sutil ---------- */
+/* ---------- Card tiers: superficie PLANA sólida + borde neutro 1px ---------- */
 .card {
   position: relative;
-  background: var(--glass-1);   /* sin backdrop-filter: fondo rgba optimizado (perf móvil) */
-  transform: translateZ(0);     /* capa GPU propia: scroll 60fps */
+  background: var(--glass-1);
   border: 1px solid var(--rim);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-day);
   overflow: hidden;
   transition: border-color var(--t-ui) var(--ease-standard),
-              background-color var(--t-ui) var(--ease-standard),
-              transform var(--t-ui) var(--ease-standard),
-              box-shadow var(--t-ui) var(--ease-standard);
+              background-color var(--t-ui) var(--ease-standard);
 }
 .card > * { position: relative; z-index: 1; }
 .card--hover:hover {
-  border-color: color-mix(in srgb, var(--accent-color) 35%, transparent);
-  box-shadow: var(--shadow-glass);
-  transform: translateY(-2px);
+  border-color: var(--rim-strong);
+  background: var(--glass-2);
 }
+.card:hover::after { background: transparent; }
 
-/* Tier-2 floating panels (modals, sheets): solid bg, no blur */
+/* Tier-2 floating panels (modals, sheets): fondo sólido, sombra neutra de separación */
 .card--float {
   background: var(--glass-2);
-  border-color: var(--rim);
+  border-color: var(--rim-strong);
   border-radius: var(--r-xl);
   box-shadow: var(--shadow-float);
 }
@@ -56,27 +53,19 @@
 .btn--primary {
   background: var(--accent-color);
   color: #fff;
-  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--accent-color) 55%, transparent);
+  box-shadow: none;
 }
-.btn--primary:hover { box-shadow: 0 8px 22px -8px color-mix(in srgb, var(--accent-color) 60%, transparent); }
+.btn--primary:hover { background: color-mix(in srgb, var(--accent-color) 88%, #fff); }
 .btn--primary:disabled { opacity: 0.55; pointer-events: none; }
 
 .btn--cyan {
   background: transparent;
   color: var(--accent-color);
-  border-color: color-mix(in srgb, var(--accent-color) 35%, transparent);
+  border-color: var(--rim);
 }
 .btn--cyan:hover {
   background: var(--accent-soft);
-}
-
-.btn--cyan {
-  background: transparent;
-  color: var(--accent-color);
-  border-color: color-mix(in srgb, var(--accent-color) 35%, transparent);
-}
-.btn--cyan:hover {
-  background: var(--accent-soft);
+  border-color: var(--rim-strong);
 }
 
 .btn--ghost {
@@ -84,14 +73,14 @@
   border-color: var(--rim-strong);
   color: var(--text-2);
 }
-.btn--ghost:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); }
+.btn--ghost:hover { background: var(--glass-2); color: var(--text); }
 
 .btn--danger {
   background: var(--alert-soft);
   color: var(--alert);
-  border-color: rgba(244, 63, 94, 0.3);
+  border-color: var(--alert);
 }
-.btn--danger:hover { box-shadow: 0 0 16px rgba(244, 63, 94, 0.3); }
+.btn--danger:hover { background: var(--alert); color: #fff; }
 
 .btn--sm { height: 34px; padding: 0 14px; font-size: 12px; }
 .btn--icon {
@@ -135,13 +124,13 @@
 
 .chip--active {
   background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent-color) 40%, transparent);
+  border-color: transparent;
   color: var(--accent-color);
 }
 
 .chip--violet.chip--active {
   background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent-color) 45%, transparent);
+  border-color: transparent;
   color: var(--accent-color);
 }
 
@@ -173,8 +162,8 @@
   animation: pulse-dot 2s var(--ease-inout) infinite;
 }
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
-  50% { opacity: 0.5; box-shadow: 0 0 8px 1px currentColor; }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 .pill--cyan  { background: var(--cyan-soft);  color: var(--cyan); }
 .pill--violet{ background: var(--violet-soft);color: var(--violet-bright); }
@@ -193,20 +182,20 @@
 }
 .input, textarea.input, select.input {
   width: 100%;
-  background: var(--glass-input);   /* sin blur: los inputs heredan el desenfoque del modal/header contenedor */
+  background: var(--glass-input);
   border: 1px solid var(--rim);
   border-radius: var(--r-md);
   padding: 11px 14px;
   font-size: 14px;
   color: var(--text);
   outline: none;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
-  transition: border-color var(--t-ui) var(--ease-standard), box-shadow var(--t-ui) var(--ease-standard), background-color var(--t-ui) var(--ease-standard);
+  box-shadow: none;
+  transition: border-color var(--t-ui) var(--ease-standard);
 }
 .input::placeholder { color: var(--text-3); }
 .input:focus {
   border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: none;
 }
 textarea.input { resize: vertical; min-height: 84px; line-height: 1.55; }
 select.input { appearance: none; cursor: pointer; }
@@ -241,7 +230,7 @@ select.input { appearance: none; cursor: pointer; }
 }
 .segmented button:active { transform: scale(0.95); }
 
-/* ---------- Modal / sheet (liquid glass) ---------- */
+/* ---------- Modal / sheet (panel sólido, sin glass) ---------- */
 .modal-root {
   position: fixed;
   inset: 0;
@@ -253,7 +242,7 @@ select.input { appearance: none; cursor: pointer; }
 .modal-scrim {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);   /* rgba optimizado, sin blur (perf) */
+  background: rgba(0, 0, 0, 0.55);
   opacity: 0;
   transition: opacity var(--t-med) var(--ease-out);
 }
@@ -285,7 +274,7 @@ html.light .modal-scrim { background: rgba(0, 0, 0, 0.3); }
   padding: 18px 20px 12px;
   flex-shrink: 0;
 }
-.modal-head h2 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
+.modal-head h2 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
 .modal-head p { margin: 2px 0 0; font-size: 12px; color: var(--text-3); }
 .modal-body { padding: 4px 20px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
 .modal-foot { display: flex; gap: 10px; padding: 12px 20px 20px; flex-shrink: 0; }
@@ -366,12 +355,12 @@ html.light .modal-scrim { background: rgba(0, 0, 0, 0.3); }
 }
 .toast.out { animation: toast-out 0.3s var(--ease-in) forwards; }
 .toast .material-symbols-outlined { font-size: 18px; flex-shrink: 0; }
-.toast--ok     { border-color: rgba(16,185,129,0.4); }
+.toast--ok     { border-color: var(--rim-strong); }
 .toast--ok     .material-symbols-outlined { color: var(--ok); }
-.toast--err    { border-color: rgba(244,63,94,0.4); }
+.toast--err    { border-color: var(--rim-strong); }
 .toast--err    .material-symbols-outlined { color: var(--alert); }
-.toast--info   .material-symbols-outlined { color: var(--cyan); }
-.toast--info   { border-color: rgba(34,211,238,0.35); }
+.toast--info   .material-symbols-outlined { color: var(--accent-color); }
+.toast--info   { border-color: var(--rim-strong); }
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(-16px) scale(0.95); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -402,7 +391,9 @@ html.light .modal-scrim { background: rgba(0, 0, 0, 0.3); }
 }
 
 /* ============================================================
-   Buscador global con lupa (Dashboard + Notas)
+   Buscador global de notas — vive en la BARRA PRINCIPAL (header)
+   Lupa colapsada por defecto; al expandir ocupa la barra y los
+   resultados caen en un panel desplegable bajo ella.
    ============================================================ */
 .global-search {
   display: flex;
@@ -410,21 +401,50 @@ html.light .modal-scrim { background: rgba(0, 0, 0, 0.3); }
   gap: 8px;
   margin-top: 14px;
 }
-.global-search-input {
-  flex: 1;
+.global-search.header-search {
+  flex: 1 1 auto;
   min-width: 0;
-  padding-left: 14px !important;
-  animation: search-expand 0.3s var(--ease-out);
+  margin-top: 0;
+  position: relative;
+  justify-content: flex-end;
 }
+.global-search.header-search .global-search-toggle { flex-shrink: 0; }
+.global-search.header-search .global-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 34px;
+  padding: 0 12px !important;
+  border-radius: var(--r-full);
+  background: var(--glass-input);
+  animation: none;
+}
+.global-search.header-search .global-search-clear {
+  width: 32px; height: 32px;
+  flex-shrink: 0;
+}
+.global-search.header-search .global-search-clear .material-symbols-outlined { font-size: 17px; }
 .global-search-input:focus {
   border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: none;
 }
-.global-search-results {
-  margin-top: 12px;
+/* Panel de resultados: ancla al buscador, no al documento */
+.global-search.header-search .global-search-results {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  z-index: 80;
+  margin-top: 0;
   padding: 4px;
-  max-height: 320px;
+  max-height: min(380px, 50vh);
   overflow-y: auto;
+  background: var(--glass-2);
+  border-color: var(--rim-strong);
+  box-shadow: var(--shadow-float);
+}
+@keyframes search-expand {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .gsr-item {
   display: block;
@@ -438,8 +458,8 @@ html.light .modal-scrim { background: rgba(0, 0, 0, 0.3); }
 }
 .gsr-item:hover,
 .gsr-item:focus-visible {
-  background: var(--primary-soft);
-  border-color: var(--rim);
+  background: var(--glass-input);
+  border-color: var(--rim-strong);
   outline: none;
 }
 .gsr-item + .gsr-item { margin-top: 2px; }
@@ -464,8 +484,8 @@ html.light .modal-scrim { background: rgba(0, 0, 0, 0.3); }
   -webkit-box-orient: vertical;
 }
 .gsr-snip mark {
-  background: var(--primary-soft);
-  color: var(--primary-color);
+  background: var(--accent-soft);
+  color: var(--accent-color);
   border-radius: 3px;
   padding: 0 2px;
 }
@@ -522,7 +542,7 @@ html.light .modal-scrim { background: rgba(0, 0, 0, 0.3); }
   transition: border-color var(--t-med) var(--ease-out), box-shadow var(--t-med) var(--ease-out);
 }
 .materia-browse-btn:hover {
-  border-color: color-mix(in srgb, var(--accent-color) 40%, transparent);
+  border-color: var(--rim-strong);
 }
 .materia-browse-btn > .material-symbols-outlined:first-child {
   color: var(--primary-color);
@@ -563,7 +583,7 @@ html.light .modal-scrim { background: rgba(0, 0, 0, 0.3); }
 /* Formulario de materia en modo edición: resaltado para que el usuario
    vea dónde está tras hacer scroll automático hasta él (móvil) */
 .materia-form--edit {
-  border-color: color-mix(in srgb, var(--accent-color) 50%, transparent) !important;
+  border-color: var(--rim-strong) !important;
 }
 
 /* ============================================================
@@ -599,7 +619,6 @@ html.light .modal-scrim { background: rgba(0, 0, 0, 0.3); }
   height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
-  box-shadow: 0 0 8px currentColor;
 }
 .materia-chip:hover {
   border-color: var(--rim-strong);
@@ -609,7 +628,7 @@ html.light .modal-scrim { background: rgba(0, 0, 0, 0.3); }
 .materia-chip:active { transform: scale(0.95); }
 .materia-chip.active {
   background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent-color) 55%, transparent);
+  border-color: transparent;
   color: var(--accent-color);
 }
 /* Scroll suave al navegar dentro de modales largos (p.ej. editar materia) */
@@ -647,7 +666,6 @@ html.light .modal-scrim { background: rgba(0, 0, 0, 0.3); }
   border-radius: 50%;
   flex-shrink: 0;
   border: 1px solid var(--rim-strong);
-  box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.25);
 }
 
 /* ============================================================
@@ -728,19 +746,6 @@ html.light .modal-scrim { background: rgba(0, 0, 0, 0.3); }
   .modal-head h2 { font-size: 16px; }
   .modal-foot {
     padding: 10px 16px calc(14px + env(safe-area-inset-bottom, 0px));
-  }
-  /* agarre tipo sheet */
-  .modal-head::before {
-    content: '';
-    position: absolute;
-    top: 6px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 44px;
-    height: 4px;
-    border-radius: 99px;
-    background: var(--rim-strong);
-    pointer-events: none;
   }
 }
 

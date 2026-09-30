@@ -1,7 +1,10 @@
 /* ============================================================
    AURA — calendar.js
-   Calendario mensual/semanal + agenda del día seleccionado.
-   Depende de: Store, UI, App (showView, openCapture).
+   Calendario mensual (matriz 7×5/6, número arriba-izquierda,
+   HOY = círculo sólido del acento SOLO en el número) + vista
+   semanal (rejilla hora × 7 días con clases del horario) +
+   agenda del día seleccionado.
+   Depende de: Store, UI, App (openCapture, toggleTask...).
    ============================================================ */
 
 const Cal = (() => {
@@ -15,6 +18,14 @@ const Cal = (() => {
   const dow = () => document.getElementById('calDow');
   const title = () => document.getElementById('calTitle');
   const weekView = () => document.getElementById('calWeekView');
+
+  const DAY_ABBR = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+  const toMin = hm => {
+    const [h, m] = String(hm || '0:0').split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+  const p2 = n => String(n).padStart(2, '0');
 
   function init() {
     document.getElementById('calPrev').addEventListener('click', () => { shift(-1); });
@@ -43,23 +54,34 @@ const Cal = (() => {
     if (state.mode === 'month') {
       state.cursor = new Date(state.cursor.getFullYear(), state.cursor.getMonth() + dir, 1);
     } else {
-      state.cursor.setDate(state.cursor.getDate() + dir * 7);
+      const d = new Date(state.cursor);
+      d.setDate(d.getDate() + dir * 7);
+      state.cursor = d;
     }
     render();
   }
 
+  /* ------------ Encabezado L M X J V S D (SIEMPRE visible) ------------ */
+  function renderDow() {
+    dow().innerHTML = DAY_ABBR
+      .map(d => `<div class="cal-dow">${d}</div>`).join('');
+  }
+
   /* ------------ Render month grid ------------ */
   async function render() {
-    const tasks = await Store.getTasks();
+    const tasks = await Store.getTasks().catch(() => []);
+    let classes = [];
+    try { classes = await Store.getClasses(); } catch (e) { classes = []; }
+    renderDow();
     renderDow();
     if (state.mode === 'month') {
       weekView().hidden = true;
       grid().hidden = false;
-      renderMonth(tasks);
+      renderMonth(tasks, classes);
     } else {
       grid().hidden = true;
       weekView().hidden = false;
-      renderWeek(tasks);
+      renderWeek(tasks, classes);
     }
     renderSelected(tasks);
     title().textContent = state.mode === 'month'
@@ -67,18 +89,28 @@ const Cal = (() => {
       : `Semana del ${state.cursor.getDate()} ${UI.MESES[state.cursor.getMonth()].toLowerCase()}`;
   }
 
-  function renderDow() {
-    dow().innerHTML = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
-      .map(d => `<div class="cal-dow">${d}</div>`).join('');
-  }
-
-  function renderMonth(tasks) {
+  function renderMonth(tasks, classes) {
     const y = state.cursor.getFullYear();
     const m = state.cursor.getMonth();
     const first = new Date(y, m, 1);
     const startOffset = (first.getDay() + 6) % 7; // lunes=0
     const gridStart = new Date(y, m, 1 - startOffset);
     const todayKey = UI.dayKey(new Date());
+
+    // Tareas pendientes por día
+    const tasksByDay = {};
+    for (const t of tasks) {
+      if (!t.vence || t.hecho) continue;
+      const k = UI.dayKey(new Date(t.vence));
+      (tasksByDay[k] = tasksByDay[k] || []).push(t);
+    }
+    // Clases del horario por día de semana (getDay: 0=Domingo)
+    const classesByDow = {};
+    for (const c of classes) {
+      for (const d of (c.dias || [])) {
+        (classesByDow[d] = classesByDow[d] || []).push(c);
+      }
+    }
 
     let html = '';
     for (let i = 0; i < 42; i++) {
@@ -89,16 +121,28 @@ const Cal = (() => {
       const isToday = key === todayKey;
       const isSel = key === state.selected;
 
-      const dayTasks = tasks.filter(t => t.vence && UI.dayKey(new Date(t.vence)) === key && !t.hecho);
-      const dots = dayTasks.slice(0, 3).map(t => {
-        const c = UI.colorFor(t.materia, App.subjectsCache);
-        return `<i class="${c === '#22d3ee' ? 'cyan' : ''}" style="background:${c};box-shadow:0 0 6px ${c}"></i>`;
-      }).join('');
+      const dayTasks = (tasksByDay[key] || []).slice(0, 3);
+      const more = (tasksByDay[key] || []).length - dayTasks.length;
+      const dayClasses = (classesByDow[d.getDay()] || [])
+        .slice()
+        .sort((a, b) => toMin(a.inicio) - toMin(b.inicio))
+        .slice(0, 2);
+
+      const evHTML =
+        dayTasks.map(t => {
+          const c = UI.colorFor(t.materia, App.subjectsCache);
+          return `<span class="cal-ev" style="--ev-color:${c};">${UI.escapeHTML(t.titulo)}</span>`;
+        }).join('') +
+        dayClasses.map(c => {
+          const col = UI.colorFor(c.materia, App.subjectsCache);
+          return `<span class="cal-ev" style="--ev-color:${col};opacity:0.75;">${p2(Math.floor(toMin(c.inicio) / 60))}:${p2(toMin(c.inicio) % 60)} ${UI.escapeHTML((c.materia || 'Clase').slice(0, 14))}</span>`;
+        }).join('');
 
       html += `
         <div class="cal-cell ${other ? 'other' : ''} ${isToday ? 'today' : ''} ${isSel ? 'selected' : ''}" data-date="${key}">
           <span class="daynum">${d.getDate()}</span>
-          <span class="cal-dots">${dots}</span>
+          ${evHTML}
+          ${more > 0 ? `<span class="cal-more">+${more} más</span>` : ''}
         </div>`;
     }
     grid().innerHTML = html;
@@ -113,52 +157,101 @@ const Cal = (() => {
 
   function startOfWeek(d) {
     const copy = new Date(d);
-    const off = (copy.getDay() + 6) % 7;
+    const off = (copy.getDay() + 6) % 7; // lunes=0
     copy.setDate(copy.getDate() - off);
+    copy.setHours(0, 0, 0, 0);
     return copy;
   }
 
-  function renderWeek(tasks) {
+  /* ------------ Vista semanal: rejilla hora × 7 días ------------ */
+  function renderWeek(tasks, classes) {
     const start = startOfWeek(state.cursor);
     const todayKey = UI.dayKey(new Date());
-    let html = '';
+    const START_H = 7, END_H = 23;
+
+    // Clases por día de semana + tareas por día
+    const classesByDow = {};
+    for (const c of classes) {
+      for (const d of (c.dias || [])) {
+        (classesByDow[d] = classesByDow[d] || []).push(c);
+      }
+    }
+    const tasksByDay = {};
+    for (const t of tasks) {
+      if (!t.vence) continue;
+      const k = UI.dayKey(new Date(t.vence));
+      (tasksByDay[k] = tasksByDay[k] || []).push(t);
+    }
+    const sortCls = arr => (arr || []).slice().sort((a, b) => toMin(a.inicio) - toMin(b.inicio));
+
+    // Fila de encabezados: esquina + 7 días (fila 1 explícita)
+    let html = `<div class="wk-head wk-corner" style="grid-row:1;grid-column:1;"></div>`;
     for (let i = 0; i < 7; i++) {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       const key = UI.dayKey(d);
-      const dayTasks = tasks
-        .filter(t => t.vence && UI.dayKey(new Date(t.vence)) === key)
-        .sort((a, b) => (a.vence || '').localeCompare(b.vence || ''));
-
       html += `
-        <div class="card week-day ${key === todayKey ? 'today' : ''}" data-date="${key}">
-          <div class="wd-head">
-            <span class="wd-name">${UI.DIAS[d.getDay()]}</span>
-            <span class="wd-num">${d.getDate()} ${UI.MESES[d.getMonth()].slice(0, 3).toLowerCase()}</span>
-          </div>
-          ${dayTasks.length
-            ? dayTasks.map(taskRowMini).join('')
-            : '<div class="muted small">Sin eventos.</div>'}
+        <div class="wk-head ${key === todayKey ? 'today' : ''}" style="grid-row:1;grid-column:${i + 2};" data-date="${key}">
+          <span class="wd-name">${DAY_ABBR[i]}</span>
+          <span class="wd-num">${d.getDate()}</span>
         </div>`;
     }
+
+    // Filas de horas 07:00 → 22:00 (filas explícitas 2..17)
+    for (let h = START_H; h < END_H; h++) {
+      const row = h - START_H + 2;
+      html += `<div class="wk-time" style="grid-row:${row};grid-column:1;">${p2(h)}:00</div>`;
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        const key = UI.dayKey(d);
+        const dowNum = d.getDay();
+        const isToday = key === todayKey;
+
+        const cls = sortCls(classesByDow[dowNum]).find(c => {
+          const s = toMin(c.inicio);
+          const e = Math.max(toMin(c.fin), s + 30);
+          return h * 60 >= Math.floor(s / 60) * 60 && h * 60 < Math.ceil(e / 60) * 60;
+        });
+
+        let inner = '';
+        if (cls) {
+          const col = UI.colorFor(cls.materia, App.subjectsCache);
+          inner = `<div class="wk-cls" style="--ev-color:${col};">
+            <b>${UI.escapeHTML(cls.materia || 'Clase')}</b>
+            <span>${p2(Math.floor(toMin(cls.inicio) / 60))}:${p2(toMin(cls.inicio) % 60)}${cls.aula ? ' · ' + UI.escapeHTML(cls.aula) : ''}</span>
+          </div>`;
+        } else {
+          const dayTasks = (tasksByDay[key] || []).filter(t => !t.hecho).slice(0, 1);
+          if (dayTasks.length) {
+            const col = UI.colorFor(dayTasks[0].materia, App.subjectsCache);
+            inner = `<div class="wk-cls" style="--ev-color:${col};"><b>${UI.escapeHTML(dayTasks[0].titulo)}</b></div>`;
+          }
+        }
+
+        html += `<div class="wk-cell ${isToday ? 'today' : ''}" style="grid-row:${row};grid-column:${i + 2};" data-date="${key}" data-dow="${dowNum}">${inner}</div>`;
+      }
+    }
+
+    weekView().className = 'week-grid';
     weekView().innerHTML = html;
-    weekView().querySelectorAll('.week-day').forEach(wd => {
-      wd.addEventListener('click', e => {
-        if (e.target.closest('.task-check')) return;
-        state.selected = wd.dataset.date;
+
+    weekView().querySelectorAll('.wk-head').forEach(hd => {
+      hd.addEventListener('click', () => {
+        state.selected = hd.dataset.date;
         render();
       });
     });
-  }
-
-  function taskRowMini(t) {
-    const c = UI.colorFor(t.materia, App.subjectsCache);
-    return `
-      <div class="timeline-item" data-id="${t._id}" style="padding:8px 10px;">
-        <span class="tl-time">${t.vence ? UI.fmtTime(new Date(t.vence)) : '—'}</span>
-        <span class="tl-title">${UI.escapeHTML(t.titulo)}</span>
-        <span class="materia-tag" style="background:${c}22;color:${c};border-color:${c}44;">${UI.escapeHTML((t.materia || 'General').slice(0, 12))}</span>
-      </div>`;
+    // Clic en celda de clase -> editar; celda libre -> nada (evita capturas accidentales)
+    weekView().querySelectorAll('.wk-cell').forEach(cell => {
+      cell.addEventListener('click', e => {
+        const ev = e.target.closest('.wk-cls');
+        if (!ev) return;
+        if (typeof Timetable !== 'undefined') {
+          App.showView('timetable');
+        }
+      });
+    });
   }
 
   /* ------------ Panel del día seleccionado ------------ */

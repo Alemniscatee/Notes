@@ -77,12 +77,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 .side-item .material-symbols-outlined { font-size: 21px; color: var(--text-3); transition: color var(--t-ui) var(--ease-standard); }
-.side-item:hover { background: var(--glass-input); color: var(--text); }
+.side-item:hover { background: var(--glass-2); color: var(--text); }
 .side-item:hover .material-symbols-outlined { color: var(--accent-color); }
 .side-item:active { transform: scale(0.97); }
 .side-item.active {
   background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent-color) 35%, transparent);
+  border-color: transparent;
   color: var(--accent-color);
 }
 .side-item.active .material-symbols-outlined { color: var(--accent-color); }
@@ -95,7 +95,7 @@
   background: var(--alert);
   color: #fff;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -110,7 +110,7 @@
   transform: translateY(-50%) translateX(-6px);
   padding: 7px 12px;
   border-radius: var(--r-sm);
-  background: rgba(16, 16, 21, 0.88);   /* tooltip opaco: no necesita blur */
+  background: var(--glass-2);   /* tooltip sólido */
   border: 1px solid var(--rim-strong);
   box-shadow: var(--shadow-glass);
   color: var(--text);
@@ -249,22 +249,14 @@ html.side-rail .side-item::after { display: block; }
   transition: all var(--t-med) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-.quick-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
-  opacity: 0.7;
-  pointer-events: none;
-}
+.quick-btn::before { display: none; }
 .quick-btn .material-symbols-outlined {
   font-size: 26px;
   color: var(--accent-color);
   transition: transform var(--t-med) var(--ease-spring);
 }
 .quick-btn:hover {
-  border-color: color-mix(in srgb, var(--accent-color) 40%, transparent);
+  border-color: var(--rim-strong);
   transform: translateY(-3px);
 }
 .quick-btn:hover .material-symbols-outlined { transform: scale(1.12); }
@@ -297,14 +289,19 @@ html.side-rail .side-item::after { display: block; }
 .editor-preview pre { background: var(--glass-input); border: 1px solid var(--rim); padding: 12px; border-radius: var(--r-md); overflow-x: auto; }
 .editor-preview blockquote { margin: 0.6em 0; padding: 6px 14px; border-left: 3px solid var(--accent-color); background: var(--accent-soft); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
 .editor-preview a { color: var(--accent-color); }
-.editor-preview a.wlink { color: var(--accent-color); text-decoration: none; border-bottom: 1px dashed color-mix(in srgb, var(--accent-color) 50%, transparent); cursor: pointer; }
+.editor-preview a.wlink { color: var(--accent-color); text-decoration: none; border-bottom: 1px dashed var(--rim-strong); cursor: pointer; }
 .editor-preview ul, .editor-preview ol { padding-left: 1.4em; }
+
+/* La lupa global vive ahora en la barra principal: se oculta el
+   toggle redundante de la cabecera de Notas (el campo filtrador
+   permanece en la toolbar con su select de materia). */
+#notesSearchToggle { display: none; }
 
 /* ---------- Calendar week view ---------- */
 .week-day { padding: 12px 14px; }
-.week-day.today { border-color: color-mix(in srgb, var(--accent-color) 45%, transparent); }
+.week-day.today { border-color: var(--rim-strong); }
 .week-day .wd-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
-.week-day .wd-name { font-size: 13px; font-weight: 800; text-transform: capitalize; }
+.week-day .wd-name { font-size: 13px; font-weight: 600; text-transform: capitalize; }
 .week-day .wd-num { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 
 /* ---------- Subject rows (modal Materias) ---------- */
@@ -315,7 +312,7 @@ html.side-rail .side-item::after { display: block; }
   background: var(--glass-input);
   border: 1px solid var(--rim-faint);
 }
-.materia-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 10px currentColor; }
+.materia-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
 .materia-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .materia-info b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .materia-row .muted { font-size: 11px; }
@@ -346,7 +343,7 @@ html.side-rail .side-item::after { display: block; }
   border-radius: 12px;
   background: var(--glass-input);
   border: 1px solid var(--rim);
-  font-size: 12px; font-weight: 800;
+  font-size: 12px; font-weight: 600;
   color: var(--text-3);
   transition: all var(--t-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
@@ -375,7 +372,7 @@ html.side-rail .side-foot { border-top: 1px solid var(--rim-faint); }
 .stat-card .stat-icon { flex-shrink: 0; }
 
 /* ---------- Timeline overdue ---------- */
-.timeline-item.overdue { border-color: rgba(244,63,94,0.4); }
+.timeline-item.overdue { border-color: var(--rim-strong); }
 .timeline-item.overdue .tl-time { color: var(--alert); }
 
 /* ---------- Notes grid thumbs (blob URLs) ---------- */
@@ -395,14 +392,14 @@ html.side-rail .side-foot { border-top: 1px solid var(--rim-faint); }
   border-radius: var(--r-full);
   background: var(--glass-2);
   border: 1px solid var(--rim);
-  box-shadow: 0 12px 32px -8px rgba(0,0,0,0.5);
+  box-shadow: var(--shadow-float);
   font-size: 12.5px; font-weight: 600;
   white-space: nowrap;
   animation: toast-in 0.5s var(--ease-spring);
 }
 .install-hint button {
   border: none; background: var(--accent-color); color: #fff;
-  border-radius: 99px; padding: 6px 14px; font-weight: 700; font-size: 12px;
+  border-radius: 99px; padding: 6px 14px; font-weight: 600; font-size: 12px;
 }
 .install-hint .dismiss { background: transparent; color: var(--text-3); padding: 6px; }
 @media (min-width: 1100px) {
@@ -433,7 +430,7 @@ html.side-rail .side-foot { border-top: 1px solid var(--rim-faint); }
 .chip:focus-visible,
 .nav-item:focus-visible,
 .side-item:focus-visible,
-.quick-btn:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 3px; box-shadow: 0 0 0 5px var(--accent-soft); }
+.quick-btn:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 3px; box-shadow: none; }
 
 /* ---------- Vault height con header de 48px ---------- */
 .vault-view { height: calc(100dvh - 64px - env(safe-area-inset-top, 0px) - var(--fab-zone)); }

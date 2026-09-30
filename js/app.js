@@ -641,14 +641,22 @@ const App = (() => {
     const clear = $('globalSearchClear');
     const wrap = $('globalSearchWrap');
 
-    // La lupa despliega el campo, lo enfoca y salta a Notas si el usuario valida
+    // La lupa despliega el campo en la barra principal y lo enfoca
     toggle.addEventListener('click', () => {
       const show = input.hidden;
       input.hidden = !show;
       clear.hidden = !show;
       toggle.setAttribute('aria-expanded', String(show));
-      if (show) { input.focus(); return; }
-      if (input.value.trim()) showView('notes'); // la lupa abierta sin texto → nada que mostrar
+      if (show) {
+        input.focus();
+      } else {
+        // Colapsar: oculta resultados y limpia el estado de búsqueda
+        input.value = '';
+        currentGlobalQuery = '';
+        renderGlobalResults();
+        $('notesSearch').value = '';
+        if (currentView === 'notes') renderNotes();
+      }
     });
 
     input.addEventListener('input', () => {
@@ -672,6 +680,21 @@ const App = (() => {
       $('notesSearch').value = '';
       if (currentView === 'notes') renderNotes();
       input.focus();
+    });
+
+    // Esc cierra el buscador; clic fuera lo colapsa (barra principal)
+    const collapseSearch = () => {
+      input.hidden = true;
+      clear.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+      $('globalSearchResults').hidden = true;
+    };
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Escape') collapseSearch();
+    });
+    document.addEventListener('click', e => {
+      if (input.hidden) return;
+      if (!wrap.contains(e.target)) collapseSearch();
     });
 
     void wrap;

@@ -15,8 +15,9 @@
 const Store = (() => {
   const TYPE = { TASK: 'task', NOTE: 'note', SUBJECT: 'subject', CLASS: 'class' };
 
-  /* Mapeo lógico → tabla física en Supabase */
-  const TABLE = { note: 'notas', task: 'tareas', subject: 'materias', class: 'clases' };
+  /* Mapeo lógico → tabla física en Supabase
+     (alias 'horario' → 'clases': la tabla del horario académico) */
+  const TABLE = { note: 'notas', task: 'tareas', subject: 'materias', class: 'clases', horario: 'clases' };
 
   /* ---------------- Helpers internos ---------------- */
 
@@ -137,7 +138,7 @@ const Store = (() => {
       aula: (aula || '').trim(),
       inicio: inicio || '08:00',
       fin: fin || '09:00',
-      dias: (dias || []).map(Number).filter(d => d >= 1 && d <= 6).sort((a, b) => a - b),
+      dias: (dias || []).map(Number).filter(d => d >= 0 && d <= 7 && d !== 7).sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b)),
       updated_at: nowISO()
     };
     let doc;

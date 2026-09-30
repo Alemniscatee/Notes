@@ -52,7 +52,7 @@ create table if not exists public.clases (
   aula          text not null default '',
   inicio        text not null default '08:00',        -- 'HH:MM'
   fin           text not null default '09:00',
-  dias          smallint[] not null default '{}',     -- [1..6] L–S
+  dias          smallint[] not null default '{}',     -- [0..6] L–D (0=Domingo)
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );

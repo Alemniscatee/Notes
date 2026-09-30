@@ -1,38 +1,39 @@
 /* ============================================================
    AURA Life Dashboard — Base Design Tokens
-   Sinfonía de Gris Carbón · estilo Apple minimalista
-   - Superficies planas en capas (#121212 / #1c1c1e), sin degradados
-   - Bordes hairline + sombras elevadas sutiles (sin glows neón)
-   - Acento personalizable vía [data-accent] (variables CSS)
-   - Micro-interacciones: cubic-bezier(0.16, 1, 0.3, 1)
+   Gris carbón PLANO SÓLIDO · diseño artesanal estructural
+   - Fondos sólidos: #121212 (lienzo) / #181818 (tarjetas)
+   - Profundidad SOLO por contraste + bordes neutros de 1px
+   - PROHIBIDO: degradados, glows, neón, glassmorphism
+   - Un único acento sólido (elegido por el usuario) solo en
+     estados activos y botones principales
    ============================================================ */
 
 :root {
   color-scheme: dark;
 
-  /* Canvas — gris carbón profundo */
+  /* Canvas — gris carbón plano sólido */
   --bg: #121212;
-  --bg-elev: #1c1c1e;
+  --bg-elev: #181818;
 
-  /* Surfaces planas (capas opacas/semitransparentes sin blur) */
-  --glass-1: rgba(28, 28, 30, 0.72);
-  --glass-2: rgba(28, 28, 30, 0.88);
-  --glass-3: rgba(18, 18, 18, 0.92);
-  --glass-input: rgba(44, 44, 46, 0.45);
+  /* Superficies planas OPACAS (cero transparencias, cero blur) */
+  --glass-1: #181818;   /* tarjetas / contenedores */
+  --glass-2: #1d1d1f;   /* header, nav hub, modales */
+  --glass-3: #0e0e0f;   /* drawer, columna de horas */
+  --glass-input: #101011; /* campos y celdas hundidas */
 
-  /* Text — escala tipográfica neutra */
-  --text: #f5f5f7;
-  --text-2: #d1d1d6;
-  --text-3: #8e8e93;
+  /* Text — jerarquía editorial neutra */
+  --text: #fafafa;
+  --text-2: #d4d4d8;
+  --text-3: #a1a1aa;
 
-  /* Borders — hairline */
-  --rim: rgba(255, 255, 255, 0.10);
-  --rim-strong: rgba(255, 255, 255, 0.18);
-  --rim-faint: rgba(255, 255, 255, 0.06);
+  /* Borders — hairline neutros de 1px */
+  --rim: #262626;
+  --rim-strong: #3f3f46;
+  --rim-faint: #1f1f1f;
 
-  /* Acento — Azul San Francisco (default, sin data-accent) */
-  --accent-color: #0a84ff;
-  --accent-soft: rgba(10, 132, 255, 0.14);
+  /* Acento — azul sólido (default, sustituible por el usuario) */
+  --accent-color: #0066ff;
+  --accent-soft: rgba(0, 102, 255, 0.12);
 
   /* Alias de compatibilidad (código existente usa --violet/--cyan) */
   --violet: var(--accent-color);
@@ -42,18 +43,19 @@
   --cyan-deep: var(--accent-color);
   --cyan-soft: var(--accent-soft);
 
-  /* Status (desaturados, estilo sistema) */
-  --ok: #30d158;
-  --warn: #ffd60a;
-  --alert: #ff453a;
-  --ok-soft: rgba(48, 209, 88, 0.14);
-  --warn-soft: rgba(255, 214, 10, 0.12);
-  --alert-soft: rgba(255, 69, 58, 0.14);
+  /* Status (semánticos, sin brillo) */
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --alert: #ef4444;
+  --ok-soft: rgba(16, 185, 129, 0.10);
+  --warn-soft: rgba(245, 158, 11, 0.10);
+  --alert-soft: rgba(239, 68, 68, 0.10);
 
-  /* Sombras elevadas sutiles (reemplazan glows y bordes gruesos) */
-  --shadow-day: 0 1px 3px rgba(0, 0, 0, 0.24);
-  --shadow-glass: 0 8px 24px -12px rgba(0, 0, 0, 0.55);
-  --shadow-float: 0 16px 48px -16px rgba(0, 0, 0, 0.65);
+  /* Sombras: nulas en superficie; una sombra NEUTRA de separación
+     solo para capas flotantes (modales/drawer) — nunca de color */
+  --shadow-day: none;
+  --shadow-glass: none;
+  --shadow-float: 0 12px 32px rgba(0, 0, 0, 0.45);
 
   /* Radios */
   --r-sm: 8px;
@@ -83,38 +85,38 @@
   --fab-zone: 158px;
 }
 
-/* ---------- Acentos personalizados ---------- */
+/* ---------- Acentos personalizados (sólidos, sin glow) ---------- */
 html[data-accent="emerald"] {
-  --accent-color: #30d158;
-  --accent-soft: rgba(48, 209, 88, 0.14);
+  --accent-color: #10b981;
+  --accent-soft: rgba(16, 185, 129, 0.12);
 }
 html[data-accent="violet"] {
-  --accent-color: #bf5af2;
-  --accent-soft: rgba(191, 90, 242, 0.14);
+  --accent-color: #8b5cf6;
+  --accent-soft: rgba(139, 92, 246, 0.12);
 }
 html[data-accent="amber"] {
-  --accent-color: #ff9f0a;
-  --accent-soft: rgba(255, 159, 10, 0.15);
+  --accent-color: #f59e0b;
+  --accent-soft: rgba(245, 158, 11, 0.13);
 }
 
-/* ---------- Light Mode — neutros suaves ---------- */
+/* ---------- Light Mode — gris neutro limpio y plano ---------- */
 html.light {
   color-scheme: light;
-  --bg: #f2f2f7;
+  --bg: #f4f4f5;
   --bg-elev: #ffffff;
-  --glass-1: rgba(255, 255, 255, 0.82);
-  --glass-2: rgba(255, 255, 255, 0.94);
-  --glass-3: rgba(242, 242, 247, 0.95);
-  --glass-input: rgba(118, 118, 128, 0.09);
-  --text: #1c1c1e;
-  --text-2: #3a3a3c;
-  --text-3: #8e8e93;
-  --rim: rgba(0, 0, 0, 0.10);
-  --rim-strong: rgba(0, 0, 0, 0.16);
-  --rim-faint: rgba(0, 0, 0, 0.05);
-  --shadow-day: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-glass: 0 8px 24px -12px rgba(0, 0, 0, 0.16);
-  --shadow-float: 0 16px 48px -16px rgba(0, 0, 0, 0.22);
+  --glass-1: #ffffff;
+  --glass-2: #ffffff;
+  --glass-3: #fafafa;
+  --glass-input: #ebebee;
+  --text: #18181b;
+  --text-2: #3f3f46;
+  --text-3: #71717a;
+  --rim: #e4e4e7;
+  --rim-strong: #d4d4d8;
+  --rim-faint: #ececef;
+  --shadow-day: none;
+  --shadow-glass: none;
+  --shadow-float: 0 10px 28px rgba(0, 0, 0, 0.12);
 }
 
 /* ---------- Reset ---------- */
@@ -125,9 +127,10 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;   /* números estables en relojes/fechas */
   overscroll-behavior-y: none;
   min-height: 100vh;
   min-height: 100dvh;
@@ -149,7 +152,7 @@ img { display: block; max-width: 100%; }
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* ---------- Ambient: viñeta estática (cero animaciones) ---------- */
+/* ---------- Ambient: lienzo plano, cero viñetas ni degradados ---------- */
 .ambient {
   position: fixed;
   inset: 0;
@@ -158,34 +161,23 @@ img { display: block; max-width: 100%; }
   pointer-events: none;
   background: var(--bg);
 }
-.ambient-vignette {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(1200px 800px at 50% -10%, rgba(255, 255, 255, 0.025), transparent 60%),
-    radial-gradient(1000px 700px at 50% 115%, rgba(0, 0, 0, 0.28), transparent 65%);
-}
-html.light .ambient-vignette {
-  background:
-    radial-gradient(1200px 800px at 50% -10%, rgba(255, 255, 255, 0.7), transparent 60%),
-    radial-gradient(1000px 700px at 50% 115%, rgba(0, 0, 0, 0.05), transparent 65%);
-}
+.ambient-vignette { position: absolute; inset: 0; }
 
 /* ---------- Safe areas ---------- */
 .pt-safe  { padding-top: env(safe-area-inset-top, 0px); }
 .pb-safe  { padding-bottom: env(safe-area-inset-bottom, 0px); }
 
-/* ---------- Alias genéricos ---------- */
+/* ---------- Alias genéricos (compatibilidad con código existente) ---------- */
 :root {
   --primary-color: var(--accent-color);
   --bg-glass: var(--glass-1);
   --primary-soft: var(--accent-soft);
-  --glow-primary: var(--shadow-glass);
-  --glow-accent: var(--shadow-glass);
-  --glow-violet: var(--shadow-glass);
-  --glow-violet-lg: var(--shadow-glass);
-  --glow-cyan: var(--shadow-glass);
-  --glow-hover: 0 10px 30px -12px rgba(0, 0, 0, 0.6);
+  --glow-primary: none;
+  --glow-accent: none;
+  --glow-violet: none;
+  --glow-violet-lg: none;
+  --glow-cyan: none;
+  --glow-hover: none;
 }
 
 /* Transición fluida al alternar temas */
