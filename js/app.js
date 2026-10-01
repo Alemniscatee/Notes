@@ -245,10 +245,14 @@ const App = (() => {
 
     Store.setChangeHook(() => refreshAll());
 
-    // Realtime en vivo si hay credenciales guardadas; si no, modo local
+    // Híbrido offline-first: baja la nube al espejo local y vacía la cola
     if (Cloud.hasCred()) {
       Cloud.startRealtime();
       updateSyncUI('syncing');
+      Store.pullRemote()
+        .then(() => DBAdapter.flush())
+        .catch(() => {})
+        .finally(() => updateSyncUI('ok'));
     } else {
       updateSyncUI(navigator.onLine ? 'ok' : 'offline');
     }
@@ -599,19 +603,18 @@ const App = (() => {
     }
   }
 
-  /* Borrado permanente en Supabase + refresh de la vista sin recargar */
+  /* Borrado híbrido (local + nube en fondo) + refresh sin recargar.
+     Nunca rompe: si la nube falla (RLS/red) queda en sync_queue. */
   async function deleteNote(id) {
     const n = notesCache.find(x => x._id === id);
     const label = n && n.titulo ? `"${n.titulo}"` : 'esta nota';
     if (!confirm(`¿Eliminar ${label} permanentemente? Esta acción no se puede deshacer.`)) return;
     try {
-      const c = Cloud.getClient();
-      const { error } = await c.from('notas').delete().eq('id', id);
-      if (error) throw error;
+      await Store.deleteNote(id);
       UI.toast('Nota eliminada ✓', 'ok');
       await refreshAll();                  // re-renderiza la vista al instante
     } catch (e) {
-      UI.toast('No se pudo eliminar: ' + e.message, 'err');
+      UI.toast('No se pudo eliminar: ' + (e && e.message || e), 'err');
     }
   }
 
@@ -1006,11 +1009,14 @@ const App = (() => {
     try {
       const ok = await Cloud.connect(url, key);
       if (!ok) throw new Error('No se pudo inicializar el cliente');
-      UI.toast('Supabase conectado · Realtime activo ✓', 'ok');
+      UI.toast('Supabase conectado ✓', 'ok');
       updateSyncUI('syncing');
+      await Store.pullRemote();   // baja la nube al espejo local (LWW)
+      await DBAdapter.flush();    // vacía sync_queue (creaciones offline)
       await refreshAll();
+      updateSyncUI('ok');
     } catch (e) {
-      UI.toast('Error conectando: ' + e.message, 'err', 5000);
+      UI.toast('Error conectando: ' + (e && e.message || e), 'err', 5000);
     } finally {
       btn.disabled = false;
     }
@@ -1026,12 +1032,14 @@ const App = (() => {
   }
 
   /* Indicador de sincronización (pie del sidebar):
-     🟢 Nube activa · 🟡 Local · 🔴 Error · ⏳ Sincronizando */
+     🟢 Nube activa · 🟡 pendientes en cola / sincronizando
+     · 🔴 error · ⚪ local sin nube. Muestra nº de pendientes. */
   function updateSyncUI(status, detail) {
     const dot = $('cloudDot');
     const label = $('cloudChipText');
     const state = $('supabaseState');
     const hasRemote = Cloud.hasCred() && !!Cloud.getClient();
+    const pending = (window.DBAdapter ? DBAdapter.queueLength() : 0);
 
     const set = (color, txt) => {
       if (dot) dot.style.background = color;
@@ -1042,8 +1050,18 @@ const App = (() => {
     if (status === 'syncing') set('var(--warn)', 'Sincronizando…');
     else if (status === 'error' || status === 'denied') set('var(--alert)', 'Error de conexión');
     else if (status === 'offline') set(hasRemote ? 'var(--alert)' : 'var(--text-3)', hasRemote ? 'Sin conexión' : 'Guardado local');
-    else if (status === 'ok') set(hasRemote ? 'var(--ok)' : 'var(--text-3)', hasRemote ? 'Nube activa · Realtime' : 'Guardado local');
+    else if (status === 'ok') {
+      if (!hasRemote) set('var(--text-3)', 'Guardado local');
+      else if (pending > 0) set('var(--warn)', `Nube · ${pending} pendiente${pending === 1 ? '' : 's'}`);
+      else set('var(--ok)', 'Nube activa · Sincronizado');
+    }
   }
+
+  /* Refresco del chip cuando cambia la cola (encolado / flush / synced) */
+  if (window.DBAdapter) DBAdapter.onChange(() => updateSyncUI('ok'));
+
+  /* Marca un registro como sincronizado (lo llama Store tras subirlo) */
+  function markSynced() { updateSyncUI('ok'); }
 
   /* ================= Export / wipe ================= */
   async function exportJSON() {
@@ -1122,6 +1140,7 @@ const App = (() => {
     toggleTask, deleteTask,
     ensureSubject,
     openMaterias,
+    markSynced,
     openEditor: id => Editor.open(id),
     openCapture: opts => {
       Capture.open();

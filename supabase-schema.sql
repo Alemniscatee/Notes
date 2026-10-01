@@ -78,7 +78,15 @@ drop trigger if exists clases_touch on public.clases;
 create trigger clases_touch before update on public.clases
   for each row execute function public.touch_updated_at();
 
--- ---------- Row Level Security (1 usuario = sus datos) ----------
+-- ---------- Row Level Security ----------
+-- NOTA: la app se conecta con la ANON key y SIN Auth login, por lo que
+-- auth.uid() es NULL. Las políticas "own_all" (auth.uid() = user_id)
+-- bloqueaban TODO insert/update/delete con error 42501 (RLS denegado).
+--
+-- Fix: políticas PERMISSIVE para anon+authenticated sobre las 4 tablas
+-- (app single-usuario; el anon key actúa de identidad del dispositivo).
+-- Si en el futuro activas Supabase Auth, borra estas políticas y vuelve
+-- a las de "own_all".
 alter table public.notas    enable row level security;
 alter table public.tareas   enable row level security;
 alter table public.materias enable row level security;
@@ -89,10 +97,19 @@ declare t text;
 begin
   foreach t in array array['notas','tareas','materias','clases'] loop
     execute format('drop policy if exists "own_all" on public.%I', t);
-    execute format('create policy "own_all" on public.%I for all
-      using (auth.uid() = user_id) with check (auth.uid() = user_id)', t);
+    execute format('drop policy if exists "anon_all" on public.%I', t);
+    execute format('create policy "anon_all" on public.%I for all
+      to anon, authenticated
+      using (true) with check (true)', t);
   end loop;
 end $$;
+
+-- user_id sigue NOT NULL con default auth.uid() → en inserts anónimos
+-- queda NULL. Volverlo nullable para que el fix RLS sea completo.
+alter table public.notas    alter column user_id drop not null;
+alter table public.tareas   alter column user_id drop not null;
+alter table public.materias alter column user_id drop not null;
+alter table public.clases   alter column user_id drop not null;
 
 -- ---------- Índices de consulta ----------
 create index if not exists notas_user_updated   on public.notas   (user_id, updated_at desc);

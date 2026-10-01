@@ -1,34 +1,44 @@
 /* ============================================================
    AURA — store.js
-   CRUD sobre Supabase (tablas notas/tareas/materias/clases).
-   MISMA API pública que la versión PouchDB: ningún módulo
-   (app, editor, capture, vault, calendar, timetable, exporter,
-   timeline, materia-picker, ui, notifications) necesita cambios
-   de firma. Cambios clave:
-   - ids y revs ahora son UUID; docs van de fila → objeto plano.
-   - Imágenes: array JSONB `imagenes` [{name, dataURL}] (antes
-     adjuntos binarios PouchDB). getAttachment() genera blob URL.
-   - Realtime: cada write dispara onRemoteChange en OTROS tabs
-     (BroadcastChannel) y el hook global refresca la UI.
+   Cliente de almacenamiento HÍBRIDO (Offline-First + Supabase).
+   Orden de carga: db-adapter.js → supabase.js → store.js → app.js
+   ------------------------------------------------------------
+   FLUJO DE GUARDADO INTELIGENTE (todas las escrituras):
+     1) Guardar SIEMPRE primero en local (DBAdapter, localStorage).
+     2) Si hay red + nube configurada → subir a Supabase en fondo
+        (async, sin bloquear la UI). Éxito → marca sincronizado.
+     3) Fallo de red, error RLS o nube no configurada → encola en
+        sync_queue para reintentar automáticamente.
+   NUNCA lanza: un error de Supabase jamás rompe la interfaz.
+   La API pública es la misma que consumen app/editor/capture/
+   vault/calendar/timetable/timeline/exporter/notifications.
    ============================================================ */
 
 const Store = (() => {
   const TYPE = { TASK: 'task', NOTE: 'note', SUBJECT: 'subject', CLASS: 'class' };
-
-  /* Mapeo lógico → tabla física en Supabase
-     (alias 'horario' → 'clases': la tabla del horario académico) */
+  /* alias 'horario' → 'clases' (tabla del horario académico) */
   const TABLE = { note: 'notas', task: 'tareas', subject: 'materias', class: 'clases', horario: 'clases' };
 
-  /* ---------------- Helpers internos ---------------- */
+  /* ================= Logs de bandera (requisito 4) ================= */
 
-  function sb() {
-    const c = Cloud.getClient();
-    if (!c) throw new Error('Supabase no está configurado. Ve a Ajustes → Sincronización en la nube.');
-    return c;
+  function logLocal(what)  { console.log('[AURA Sync] 💾 Guardado local exitoso.', what); }
+  function logCloud(what)  { console.log('[AURA Sync] ☁️ Sincronizado con Supabase.', what); }
+  function logOffline(what){ console.log('[AURA Sync] 📶 Modo Offline activado. Registro encolado para sincronización.', what); }
+
+  /* Toast sutil sobre el destino del dato (si la capa UI está cargada).
+     El de modo local va limitado a 1 cada 4 s para no saturar en ráfaga. */
+  let lastLocalToast = 0;
+  function toastCloud() { if (typeof UI !== 'undefined') UI.toast('☁️ Sincronizado en la nube', 'ok', 1600); }
+  function toastLocal() {
+    if (typeof UI === 'undefined') return;
+    const now = Date.now();
+    if (now - lastLocalToast < 4000) return;
+    lastLocalToast = now;
+    UI.toast('💾 Guardado localmente — se subirá al reconectar', 'info', 2400);
   }
 
-  /* uuid v4 sin dependencias (gen_random_uuid ya lo da la BD,
-     pero se usa para keys locales antes del insert) */
+  /* ================= Helpers ================= */
+
   function uid() {
     return (crypto && crypto.randomUUID)
       ? crypto.randomUUID()
@@ -37,25 +47,403 @@ const Store = (() => {
           return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
         });
   }
-
   function nowISO() { return new Date().toISOString(); }
-
-  /* Timestamps → ms (la UI comparaba updatedAt numérico de PouchDB) */
   const ms = v => (v ? new Date(v).getTime() || 0 : 0);
 
-  /* Fila Supabase → doc con forma compatible (mantiene _id/_rev) */
+  /* Fila Supabase → doc con forma compatible (_id/_rev/createdAt/updatedAt) */
   function rowToDoc(row) {
     if (!row) return null;
     const doc = { ...row, _id: row.id, _rev: row.updated_at, createdAt: ms(row.created_at), updatedAt: ms(row.updated_at) };
-    delete doc.id;
-    delete doc.user_id;
-    delete doc.updated_at;
-    delete doc.created_at;
+    delete doc.id; delete doc.user_id;
+    delete doc.updated_at; delete doc.created_at;
     return doc;
   }
 
-  /* Sincroniza otros tabs del MISMO dispositivo (Realtime solo cubre
-     otros clientes; entre pestañas locales usa BroadcastChannel) */
+  /* Doc local → payload con id/timestamps (para fila Supabase y para local) */
+  function docToRow(doc, { withId = true } = {}) {
+    const row = {
+      ...(withId ? { id: doc._id } : {}),
+      titulo: doc.titulo ?? '',
+      materia: doc.materia ?? '',
+      contenido: doc.contenido ?? '',
+      imagenes: doc.imagenes ?? [],
+      updated_at: doc.updated_at
+    };
+    if (doc.created_at) row.created_at = doc.created_at;
+    return row;
+  }
+
+  function taskToRow(t, { withId = true } = {}) {
+    const row = {
+      ...(withId ? { id: t._id } : {}),
+      titulo: t.titulo ?? '',
+      materia: t.materia ?? '',
+      vence: t.vence ?? null,
+      contenido: t.contenido ?? '',
+      hecho: !!t.hecho,
+      updated_at: t.updated_at
+    };
+    if (t.created_at) row.created_at = t.created_at;
+    return row;
+  }
+
+  function subjectToRow(s, { withId = true } = {}) {
+    const row = {
+      ...(withId ? { id: s._id } : {}),
+      nombre: s.nombre ?? '',
+      color: s.color || '#8b5cf6',
+      codigo: s.codigo ?? '',
+      profesor: s.profesor ?? '',
+      profesorNombre: s.profesorNombre ?? '',
+      profesorDescripcion: s.profesorDescripcion ?? '',
+      updated_at: s.updated_at
+    };
+    if (s.created_at) row.created_at = s.created_at;
+    return row;
+  }
+
+  function classToRow(c, { withId = true } = {}) {
+    const row = {
+      ...(withId ? { id: c._id } : {}),
+      materiaId: c.materiaId || null,
+      materia: c.materia ?? '',
+      aula: c.aula ?? '',
+      inicio: c.inicio || '08:00',
+      fin: c.fin || '09:00',
+      dias: c.dias || [],
+      updated_at: c.updated_at
+    };
+    if (c.created_at) row.created_at = c.created_at;
+    return row;
+  }
+
+  const ROW_MAKERS = {
+    notas: doc => docToRow(doc),
+    tareas: taskToRow,
+    materias: subjectToRow,
+    clases: classToRow
+  };
+
+  /* ================= Núcleo híbrido ================= */
+
+  function cloudAvailable() { return !!(window.Cloud && Cloud.hasCred() && Cloud.getClient()); }
+
+  function isNetworkUp() { return DBAdapter.isOnline(); }
+
+  /* Escritura híbrida: local primero, nube en fondo.
+     Devuelve SIEMPRE el doc local (nunca lanza). */
+  function hybridWrite(table, maker, doc) {
+    /* 1) Local inmediato — la UI nunca espera a la red */
+    const payload = maker(doc, { withId: true });
+    const localDoc = { ...doc, ...payload };
+    DBAdapter.upsertLocal(table, localDoc);
+    logLocal(table + ' → ' + doc._id);
+
+    /* 2) Nube en background */
+    cloudPush(table, doc);
+    return localDoc;
+  }
+
+  /* Envío asíncrono a la nube; ante cualquier fallo → sync_queue */
+  function cloudPush(table, doc) {
+    if (!cloudAvailable() || !isNetworkUp()) {
+      DBAdapter.enqueue({ _eid: uid(), op: 'upsert', table, doc: ROW_MAKERS[table](doc), at: Date.now() });
+      logOffline(table + ' → ' + doc._id);
+      toastLocal();
+      DBAdapter.scheduleRetry(1);
+      return;
+    }
+    const row = ROW_MAKERS[table](doc);
+    Cloud.getClient()
+      .from(table).upsert(row)
+      .then(({ error }) => {
+        if (error) throw error;                  // incluye RLS 42501
+        logCloud(table + ' → ' + doc._id);       // éxito: ya está sincronizado
+        toastCloud();
+        if (typeof App !== 'undefined' && App.markSynced) App.markSynced(doc._id);
+      })
+      .catch(err => {
+        /* Error de red o de permisos RLS → fallback local, sin romper nada */
+        console.warn('[AURA Sync] Falló subida a nube (queda en cola):', err && (err.message || err.code || err));
+        DBAdapter.enqueue({ _eid: uid(), op: 'upsert', table, doc: row, at: Date.now() });
+        toastLocal();
+        DBAdapter.scheduleRetry(1);
+      });
+  }
+
+  /* Borrado híbrido: local ya lo hace DBAdapter.removeLocal */
+  function hybridRemove(table, id) {
+    DBAdapter.removeLocal(table, id);
+    if (cloudAvailable() && isNetworkUp()) {
+      Cloud.getClient().from(table).delete().eq('id', id)
+        .then(({ error }) => { if (error) throw error; logCloud(table + ' delete → ' + id); })
+        .catch(err => {
+          console.warn('[AURA Sync] Falló borrado en nube (queda en cola):', err && (err.message || err.code || err));
+          DBAdapter.enqueue({ _eid: uid(), op: 'delete', table, id, at: Date.now() });
+          DBAdapter.scheduleRetry(1);
+        });
+    } else {
+      DBAdapter.enqueue({ _eid: uid(), op: 'delete', table, id, at: Date.now() });
+      logOffline(table + ' delete → ' + id);
+      DBAdapter.scheduleRetry(1);
+    }
+    broadcastWrite();
+  }
+
+  /* Uploader/Remover que DBAdapter usa al vaciar la sync_queue */
+  function initQueueWorkers() {
+    DBAdapter.setUploader(async (table, row) => {
+      if (!cloudAvailable()) throw new Error('Supabase no configurado');
+      const { error } = await Cloud.getClient().from(table).upsert(row);
+      if (error) throw error;
+    });
+    DBAdapter.setRemover(async (table, id) => {
+      if (!cloudAvailable()) throw new Error('Supabase no configurado');
+      const { error } = await Cloud.getClient().from(table).delete().eq('id', id);
+      if (error) throw error;
+    });
+  }
+
+  /* ================= Lecturas: espejo local (instantáneo) ================= */
+
+  function getNotes() {
+    const list = [...DBAdapter.getAll('notas')];
+    list.sort((a, b) => ms(b.updated_at) - ms(a.updated_at));
+    return Promise.resolve(list);
+  }
+
+  function getTasks() {
+    const rows = [...DBAdapter.getAll('tareas')];
+    rows.sort((a, b) => {
+      if (!!a.hecho !== !!b.hecho) return a.hecho ? 1 : -1;
+      return (a.vence || '9999').localeCompare(b.vence || '9999');
+    });
+    return Promise.resolve(rows);
+  }
+
+  function getSubjects() {
+    const list = [...DBAdapter.getAll('materias')];
+    list.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    return Promise.resolve(list);
+  }
+
+  function getClasses() {
+    const rows = [...DBAdapter.getAll('clases')];
+    rows.sort((a, b) =>
+      (a.inicio || '').localeCompare(b.inicio || '') ||
+      (a.materia || '').localeCompare(b.materia || ''));
+    return Promise.resolve(rows);
+  }
+
+  /* ================= Materias ================= */
+
+  function saveSubject(nombre, color, extras = {}, id = null) {
+    const existing = id ? DBAdapter.getAll('materias').find(s => s._id === id) : null;
+    const doc = {
+      _id: existing ? existing._id : DBAdapter.uid(),
+      _rev: nowISO(),
+      nombre: (nombre || '').trim(),
+      color: color || '#8b5cf6',
+      codigo: String(extras.codigo ?? '').trim(),
+      profesor: String(extras.profesor ?? '').trim(),
+      profesorNombre: String(extras.profesorNombre ?? '').trim(),
+      profesorDescripcion: String(extras.profesorDescripcion ?? '').trim(),
+      created_at: existing ? existing.created_at : nowISO(),
+      updated_at: nowISO()
+    };
+    const out = hybridWrite('materias', subjectToRow, doc);
+    broadcastWrite();
+    return Promise.resolve(out);
+  }
+
+  function deleteSubject(id) {
+    hybridRemove('materias', id);
+    return Promise.resolve();
+  }
+
+  /* ================= Clases (Horario fijo) ================= */
+
+  function upsertClass({ id, materiaId, materia, aula, inicio, fin, dias }) {
+    const existing = id ? DBAdapter.getAll('clases').find(c => c._id === id) : null;
+    const doc = {
+      _id: existing ? existing._id : DBAdapter.uid(),
+      _rev: nowISO(),
+      materiaId: materiaId || null,
+      materia: (materia || '').trim(),
+      aula: (aula || '').trim(),
+      inicio: inicio || '08:00',
+      fin: fin || '09:00',
+      dias: (dias || []).map(Number).filter(d => d >= 0 && d <= 6).sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b)),
+      created_at: existing ? existing.created_at : nowISO(),
+      updated_at: nowISO()
+    };
+    const out = hybridWrite('clases', classToRow, doc);
+    broadcastWrite();
+    return Promise.resolve(out);
+  }
+
+  function deleteClass(id) {
+    hybridRemove('clases', id);
+    return Promise.resolve();
+  }
+
+  /* ================= Tareas ================= */
+
+  function saveTask({ id, titulo, materia, vence, contenido, hecho }) {
+    const existing = id ? DBAdapter.getAll('tareas').find(t => t._id === id) : null;
+    const doc = {
+      _id: existing ? existing._id : DBAdapter.uid(),
+      _rev: nowISO(),
+      titulo: (titulo || '').trim(),
+      materia: materia || '',
+      vence: vence || null,
+      contenido: contenido || '',
+      hecho: typeof hecho === 'boolean' ? hecho : (existing ? !!existing.hecho : false),
+      created_at: existing ? existing.created_at : nowISO(),
+      updated_at: nowISO()
+    };
+    const out = hybridWrite('tareas', taskToRow, doc);
+    broadcastWrite();
+    return Promise.resolve(out);
+  }
+
+  function toggleTask(id) {
+    const t = DBAdapter.getAll('tareas').find(x => x._id === id);
+    if (!t) return Promise.resolve(null);
+    t.hecho = !t.hecho;
+    t._rev = nowISO();
+    t.updated_at = nowISO();
+    const out = hybridWrite('tareas', taskToRow, t);
+    broadcastWrite();
+    return Promise.resolve(out);
+  }
+
+  /* Compat: app.js la usa para borrar tareas (y antes caía a notas) */
+  function deleteDoc(id) {
+    if (DBAdapter.getAll('tareas').some(t => t._id === id)) return deleteTask(id);
+    return deleteNote(id);
+  }
+  function deleteTask(id) {
+    hybridRemove('tareas', id);
+    return Promise.resolve();
+  }
+
+  /* ================= Notas ================= */
+
+  function saveNote({ id, titulo, materia, contenido, imagenes }) {
+    const existing = id ? DBAdapter.getAll('notas').find(n => n._id === id) : null;
+    const doc = {
+      _id: existing ? existing._id : DBAdapter.uid(),
+      _rev: nowISO(),
+      titulo: (titulo || 'Sin título').trim() || 'Sin título',
+      materia: materia || '',
+      contenido: contenido || '',
+      imagenes: (imagenes || [])
+        .filter(img => img && !img.removed && img.dataURL)
+        .map(img => ({ name: img.name || ('img_' + uid()), dataURL: img.dataURL })),
+      created_at: existing ? existing.created_at : nowISO(),
+      updated_at: nowISO()
+    };
+    /* Conserva imágenes ya persistidas referenciadas con { stored: name } */
+    if (existing) {
+      for (const img of (imagenes || [])) {
+        if (img && img.stored && !doc.imagenes.some(x => x.name === img.stored)) {
+          const prev = (existing.imagenes || []).find(x => x.name === img.stored);
+          if (prev) doc.imagenes.push({ name: prev.name, dataURL: prev.dataURL });
+        }
+      }
+    }
+    const out = hybridWrite('notas', doc => docToRow(doc), doc);
+    broadcastWrite();
+    return Promise.resolve(out);
+  }
+
+  /* dataURL desde el espejo local (sync, sin red) */
+  function getAttachment(id, name) {
+    const n = DBAdapter.getAll('notas').find(x => x._id === id);
+    if (!n) return Promise.resolve(null);
+    const img = (n.imagenes || []).find(i => i.name === name);
+    return Promise.resolve(img && img.dataURL ? img.dataURL : null);
+  }
+
+  function deleteNote(id) {
+    hybridRemove('notas', id);
+    return Promise.resolve();
+  }
+
+  /* ================= Export / wipe ================= */
+
+  async function rawAll() {
+    const out = [];
+    for (const t of ['notas', 'tareas', 'materias', 'clases']) {
+      for (const d of DBAdapter.getAll(t)) {
+        out.push({ table: t, ...ROW_MAKERS[t](d) });
+      }
+    }
+    return out;
+  }
+
+  async function wipeAll() {
+    /* Borrado masivo directo en la nube cuando es posible; si falla
+       (RLS/red), cada registro queda encolado vía hybridRemove. */
+    for (const t of ['notas', 'tareas', 'materias', 'clases']) {
+      if (cloudAvailable() && isNetworkUp()) {
+        try {
+          const { error } = await Cloud.getClient().from(t).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          if (error) throw error;
+          DBAdapter.replaceAll(t, []);
+          continue;
+        } catch (e) {
+          console.warn('[AURA Sync] Wipe masivo de', t, 'falló → borrado uno a uno:', e && (e.message || e.code || e));
+        }
+      }
+      const ids = DBAdapter.getAll(t).map(d => d._id);
+      for (const id of ids) hybridRemove(t, id);
+    }
+  }
+
+  /* ================= Remote → Local (pull + realtime) ================= */
+
+  /* Baja la nube al espejo local. Last-write-wins por updated_at. */
+  async function pullRemote() {
+    if (!cloudAvailable()) return;
+    const client = Cloud.getClient();
+    for (const t of ['notas', 'tareas', 'materias', 'clases']) {
+      try {
+        const { data, error } = await client.from(t).select('*').limit(1000);
+        if (error) throw error;
+        const remote = (data || []).map(rowToDoc);
+        const local = DBAdapter.getAll(t);
+        const byId = new Map(local.map(d => [d._id, d]));
+        for (const r of remote) {
+          const l = byId.get(r._id);
+          if (!l || ms(r.updated_at) > ms(l.updated_at)) byId.set(r._id, r);
+        }
+        DBAdapter.replaceAll(t, [...byId.values()]);
+      } catch (e) {
+        console.warn('[AURA Sync] Pull de', t, 'falló (mantengo local):', e && (e.message || e.code || e));
+      }
+    }
+    emitChanged();
+  }
+
+  /* Cambios realtime de otros dispositivos → refrescan espejo + UI */
+  function initRealtimeBridge() {
+    if (typeof Cloud === 'undefined' || !Cloud.onStatus) return;
+    Cloud.onStatus((status, payload) => {
+      if (status !== 'syncing' || !payload) return;
+      const ev = payload && payload.data ? payload.data : null;
+      const schema = payload && payload.schema;
+      if (schema && schema !== 'public') return;
+      const table = ev && ev.table;
+      if (!Object.values(TABLE).includes(table)) return;
+      /* Simple y robusto: cualquier cambio remoto re-pulea y refresca */
+      pullRemote();
+    });
+  }
+
+  /* ================= Broadcast entre pestañas ================= */
+
   let bc = null;
   function broadcastWrite() {
     try {
@@ -64,225 +452,26 @@ const Store = (() => {
     } catch (e) { /* noop */ }
   }
   function initBroadcast() {
+    initQueueWorkers();
+    initRealtimeBridge();
     try {
       bc = new BroadcastChannel('aura-store');
-      bc.onmessage = () => onRemoteChange();
+      bc.onmessage = () => { pullRemote().catch(() => {}); changeHook && changeHook(); };
     } catch (e) { /* noop */ }
   }
 
-  /* Hook global de refresco (lo registra app.js → refreshAll) */
+  /* ================= Hook de refresco de UI ================= */
+
   let changeHook = null;
+  let emitTimer = null;
   function onRemoteChange() { changeHook && changeHook(); }
   function setChangeHook(fn) { changeHook = fn; }
-
-  let refreshTimer = null;
-  function scheduleRefresh() {
-    clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(() => changeHook && changeHook(), 600);
+  function emitChanged() {
+    clearTimeout(emitTimer);
+    emitTimer = setTimeout(() => changeHook && changeHook(), 250);
   }
 
-  /* ---------------- Materias ---------------- */
-
-  async function getSubjects() {
-    const { data, error } = await sb().from(TABLE.subject).select('*').order('nombre', { ascending: true }).limit(500);
-    if (error) throw error;
-    return (data || []).map(rowToDoc);
-  }
-
-  async function saveSubject(nombre, color, extras = {}, id = null) {
-    const payload = {
-      nombre: (nombre || '').trim(),
-      color: color || '#8b5cf6',
-      ...(extras.codigo !== undefined ? { codigo: String(extras.codigo).trim() } : {}),
-      ...(extras.profesor !== undefined ? { profesor: String(extras.profesor).trim() } : {}),
-      ...(extras.profesorNombre !== undefined ? { profesorNombre: String(extras.profesorNombre).trim() } : {}),
-      ...(extras.profesorDescripcion !== undefined ? { profesorDescripcion: String(extras.profesorDescripcion).trim() } : {}),
-      updated_at: nowISO()
-    };
-    let doc;
-    if (id) {
-      const { data, error } = await sb().from(TABLE.subject).update(payload).eq('id', id).select().single();
-      if (error) throw error;
-      doc = rowToDoc(data);
-    } else {
-      const { data, error } = await sb().from(TABLE.subject).insert({ ...payload, created_at: nowISO() }).select().single();
-      if (error) throw error;
-      doc = rowToDoc(data);
-    }
-    broadcastWrite();
-    return doc;
-  }
-
-  async function deleteSubject(id /*, rev */) {
-    const { error } = await sb().from(TABLE.subject).delete().eq('id', id);
-    if (error) throw error;
-    broadcastWrite();
-  }
-
-  /* ---------------- Clases (Horario fijo) ---------------- */
-
-  async function getClasses() {
-    const { data, error } = await sb().from(TABLE.class).select('*').order('inicio', { ascending: true }).limit(500);
-    if (error) throw error;
-    const rows = (data || []).map(rowToDoc);
-    rows.sort((a, b) =>
-      (a.inicio || '').localeCompare(b.inicio || '') ||
-      (a.materia || '').localeCompare(b.materia || ''));
-    return rows;
-  }
-
-  async function upsertClass({ id, materiaId, materia, aula, inicio, fin, dias }) {
-    const payload = {
-      materiaId: materiaId || null,
-      materia: (materia || '').trim(),
-      aula: (aula || '').trim(),
-      inicio: inicio || '08:00',
-      fin: fin || '09:00',
-      dias: (dias || []).map(Number).filter(d => d >= 0 && d <= 7 && d !== 7).sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b)),
-      updated_at: nowISO()
-    };
-    let doc;
-    if (id) {
-      const { data, error } = await sb().from(TABLE.class).update(payload).eq('id', id).select().single();
-      if (error) throw error;
-      doc = rowToDoc(data);
-    } else {
-      const { data, error } = await sb().from(TABLE.class).insert({ ...payload, created_at: nowISO() }).select().single();
-      if (error) throw error;
-      doc = rowToDoc(data);
-    }
-    broadcastWrite();
-    return doc;
-  }
-
-  async function deleteClass(id) {
-    const { error } = await sb().from(TABLE.class).delete().eq('id', id);
-    if (error) throw error;
-    broadcastWrite();
-  }
-
-  /* ---------------- Tareas ---------------- */
-
-  async function getTasks() {
-    const { data, error } = await sb().from(TABLE.task).select('*').order('vence', { ascending: true, nullsFirst: false }).limit(1000);
-    if (error) throw error;
-    const rows = (data || []).map(rowToDoc);
-    rows.sort((a, b) => {
-      if (!!a.hecho !== !!b.hecho) return a.hecho ? 1 : -1;
-      return (a.vence || '9999').localeCompare(b.vence || '9999');
-    });
-    return rows;
-  }
-
-  async function saveTask({ id, titulo, materia, vence, contenido, hecho }) {
-    const payload = {
-      titulo: (titulo || '').trim(),
-      materia: materia || '',
-      vence: vence || null,
-      contenido: contenido || '',
-      ...(typeof hecho === 'boolean' ? { hecho } : {}),
-      updated_at: nowISO()
-    };
-    let doc;
-    if (id) {
-      const { data, error } = await sb().from(TABLE.task).update(payload).eq('id', id).select().single();
-      if (error) throw error;
-      doc = rowToDoc(data);
-    } else {
-      const { data, error } = await sb().from(TABLE.task).insert({ ...payload, hecho: payload.hecho ?? false, created_at: nowISO() }).select().single();
-      if (error) throw error;
-      doc = rowToDoc(data);
-    }
-    broadcastWrite();
-    return doc;
-  }
-
-  async function toggleTask(id) {
-    const { data: row, error: e1 } = await sb().from(TABLE.task).select('hecho').eq('id', id).single();
-    if (e1) throw e1;
-    const { data, error } = await sb().from(TABLE.task)
-      .update({ hecho: !row.hecho, updated_at: nowISO() }).eq('id', id).select().single();
-    if (error) throw error;
-    broadcastWrite();
-    return rowToDoc(data);
-  }
-
-  async function deleteDoc(id) {
-    /* deleteDoc se usa para tareas (app.js); notas tienen su propio deleteNote.
-       Probamos tareas primero y caemos a notas para mantener compat. */
-    let { error } = await sb().from(TABLE.task).delete().eq('id', id);
-    if (error) {
-      const r = await sb().from(TABLE.note).delete().eq('id', id);
-      if (r.error) throw r.error;
-    }
-    broadcastWrite();
-  }
-
-  /* ---------------- Notas ---------------- */
-
-  async function getNotes() {
-    const { data, error } = await sb().from(TABLE.note).select('*').order('updated_at', { ascending: false }).limit(1000);
-    if (error) throw error;
-    return (data || []).map(rowToDoc);
-  }
-
-  async function saveNote({ id, titulo, materia, contenido, imagenes }) {
-    /* imagenes: [{name, dataURL}] se guardan en JSONB; `stored` solo
-       existía para adjuntos PouchDB y aquí se ignora con seguridad. */
-    const payload = {
-      titulo: (titulo || 'Sin título').trim() || 'Sin título',
-      materia: materia || '',
-      contenido: contenido || '',
-      imagenes: (imagenes || [])
-        .filter(img => img && !img.removed && img.dataURL)
-        .map(img => ({ name: img.name || ('img_' + uid()), dataURL: img.dataURL })),
-      updated_at: nowISO()
-    };
-    let doc;
-    if (id) {
-      const { data, error } = await sb().from(TABLE.note).update(payload).eq('id', id).select().single();
-      if (error) throw error;
-      doc = rowToDoc(data);
-    } else {
-      const { data, error } = await sb().from(TABLE.note).insert({ ...payload, created_at: nowISO() }).select().single();
-      if (error) throw error;
-      doc = rowToDoc(data);
-    }
-    broadcastWrite();
-    return doc;
-  }
-
-  /* Genera blob URL desde la imagen JSONB (compat con note-thumbs y editor) */
-  async function getAttachment(id, name) {
-    try {
-      const { data, error } = await sb().from(TABLE.note).select('imagenes').eq('id', id).single();
-      if (error || !data) return null;
-      const img = (data.imagenes || []).find(i => i.name === name);
-      if (!img || !img.dataURL) return null;
-      return img.dataURL;          // dataURL usable directo en <img src>
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /* Para exportJSON (app.js) */
-  async function rawAll() {
-    const out = [];
-    for (const t of Object.values(TABLE)) {
-      const { data, error } = await sb().from(t).select('*').limit(5000);
-      if (!error && data) out.push(...data.map(r => ({ table: t, ...r })));
-    }
-    return out;
-  }
-
-  async function wipeAll() {
-    for (const t of Object.values(TABLE)) {
-      const { error } = await sb().from(t).delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      if (error) throw error;
-    }
-  }
-
-  /* ---------------- Helpers de imagen (compat) ---------------- */
+  /* ================= Helpers de imagen (compat) ================= */
 
   function dataURLtoBlob(dataURL) {
     const [meta, b64] = dataURL.split(',');
@@ -301,14 +490,16 @@ const Store = (() => {
     });
   }
 
+  /* ================= API pública ================= */
+
   return {
-    TYPE, getSubjects, saveSubject, deleteSubject,
-    getTasks, saveTask, toggleTask, deleteDoc,
-    getNotes, saveNote, getAttachment,
+    TYPE, initBroadcast,
+    getSubjects, saveSubject, deleteSubject,
+    getTasks, saveTask, toggleTask, deleteDoc, deleteTask,
+    getNotes, saveNote, getAttachment, deleteNote,
     getClasses, upsertClass, deleteClass,
     dataURLtoBlob, blobToDataURL,
     rawAll, wipeAll,
-    onRemoteChange, setChangeHook, scheduleRefresh,
-    initBroadcast
+    pullRemote, onRemoteChange, setChangeHook, scheduleRefresh: emitChanged
   };
 })();
