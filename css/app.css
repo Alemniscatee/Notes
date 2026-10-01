@@ -5,6 +5,12 @@
 /* ---------- hidden attribute siempre gana ---------- */
 [hidden] { display: none !important; }
 
+/* ---------- Animación del botón "Sync Now" ---------- */
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  @keyframes spin { to { transform: none; } }
+}
+
 /* ---------- Vault view: necesita display:flex al activarse ---------- */
 .view.vault-view { display: none; }
 .view.vault-view.active { display: flex; }

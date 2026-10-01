@@ -66,6 +66,9 @@ const DBAdapter = (() => {
         });
   }
 
+  /* Timestamp → ms (0 si es inválido/undefined), para comparar versiones */
+  function ms(v) { return v ? (new Date(v).getTime() || 0) : 0; }
+
   /* ---------------- API de listas ---------------- */
 
   function getAll(table) {
@@ -117,6 +120,20 @@ const DBAdapter = (() => {
   function removeMany(events) {
     const done = new Set(events.map(e => e._eid));
     writeQueue(queue().filter(e => !done.has(e._eid)));
+  }
+
+  /* Descarta upserts en cola que la nube ya superó tras una descarga
+     completa (pull). Los delete se conservan: propagan el borrado local. */
+  function pruneSupersededQueue() {
+    const remaining = queue().filter(ev => {
+      if (ev.op === 'delete') return true;            // los delete siempre se propagan
+      const local = (db()[ev.table] || []).find(d => d._id === (ev.doc && ev.doc._id));
+      /* Se DESCARTA si el registro ya no existe localmente (fue borrado
+         o sustituido) o si la copia local es MÁS NUEVA que el evento. */
+      if (!local) return false;
+      return ms(local.updated_at) <= ms(ev.doc.updated_at);
+    });
+    if (remaining.length !== queue().length) writeQueue(remaining);
   }
 
   /* ---------------- Detección de red ---------------- */
@@ -206,6 +223,7 @@ const DBAdapter = (() => {
   return {
     uid, getAll, upsertLocal, removeLocal, replaceAll,
     enqueue, peek, removeMany, flush,
+    pruneSupersededQueue,
     setUploader, setRemover, queueLength, scheduleRetry,
     isOnline, onChange
   };

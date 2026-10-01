@@ -404,27 +404,42 @@ const Store = (() => {
 
   /* ================= Remote → Local (pull + realtime) ================= */
 
-  /* Baja la nube al espejo local. Last-write-wins por updated_at. */
+  /* Baja la nube al espejo local (last-write-wins por updated_at).
+     Devuelve { notas: bool, tareas: bool, materias: bool, clases: bool }
+     para saber si la descarga inicial fue completa. */
   async function pullRemote() {
-    if (!cloudAvailable()) return;
+    const results = { notas: false, tareas: false, materias: false, clases: false };
+    if (!cloudAvailable()) return results;
     const client = Cloud.getClient();
-    for (const t of ['notas', 'tareas', 'materias', 'clases']) {
+    for (const t of Object.keys(results)) {
       try {
-        const { data, error } = await client.from(t).select('*').limit(1000);
+        const { data, error } = await client.from(t).select('*').limit(2000);
         if (error) throw error;
         const remote = (data || []).map(rowToDoc);
-        const local = DBAdapter.getAll(t);
-        const byId = new Map(local.map(d => [d._id, d]));
+        const byId = new Map(DBAdapter.getAll(t).map(d => [d._id, d]));
         for (const r of remote) {
           const l = byId.get(r._id);
           if (!l || ms(r.updated_at) > ms(l.updated_at)) byId.set(r._id, r);
         }
         DBAdapter.replaceAll(t, [...byId.values()]);
+        results[t] = true;
+        console.log(`[AURA Sync] ⬇️ ${t} (${remote.length}) descargada(s) desde Supabase.`);
       } catch (e) {
-        console.warn('[AURA Sync] Pull de', t, 'falló (mantengo local):', e && (e.message || e.code || e));
+        console.warn(`[AURA Sync] Pull de ${t} falló (mantengo local):`, e && (e.message || e.code || e));
       }
     }
+    if (results.notas && results.tareas && results.materias && results.clases) {
+      /* La nube prevaleció: los upserts en cola ya superados se descartan
+         para que no re-escriban datos frescos (los delete se conservan). */
+      DBAdapter.pruneSupersededQueue();
+      console.log('[AURA Sync] ⬇️ Datos sincronizados desde Supabase a la caché local.');
+    } else {
+      console.warn('[AURA Sync] ⚠️ Sincronización inicial incompleta. Tablas sin descargar:',
+        Object.entries(results).filter(([, ok]) => !ok).map(([t]) => t).join(', '),
+        '— ¿Ejecutaste el supabase-schema.sql actualizado? (fix RLS)');
+    }
     emitChanged();
+    return results;
   }
 
   /* Cambios realtime de otros dispositivos → refrescan espejo + UI */

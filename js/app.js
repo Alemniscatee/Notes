@@ -233,6 +233,8 @@ const App = (() => {
     bindGlobalSearch();
     bindAccentPicker();
     bindSettings();
+    bindSyncNow();
+    bindPullToRefresh();
     Cal.init();
     Editor.init();
     Capture.init();
@@ -245,17 +247,9 @@ const App = (() => {
 
     Store.setChangeHook(() => refreshAll());
 
-    // Híbrido offline-first: baja la nube al espejo local y vacía la cola
-    if (Cloud.hasCred()) {
-      Cloud.startRealtime();
-      updateSyncUI('syncing');
-      Store.pullRemote()
-        .then(() => DBAdapter.flush())
-        .catch(() => {})
-        .finally(() => updateSyncUI('ok'));
-    } else {
-      updateSyncUI(navigator.onLine ? 'ok' : 'offline');
-    }
+    /* Sincronización inicial bidireccional: SIEMPRE al arrancar con red,
+       la nube se descarga al espejo local antes del primer render. */
+    syncWithCloud({ initial: true });
 
     await refreshAll();
     fillSettingsForm();
@@ -310,6 +304,83 @@ const App = (() => {
 
   function bindDashboard() {
     $('newTaskBtn') && null;
+  }
+
+  /* Pull-to-refresh (móvil): deslizar hacia abajo en el tope de la
+     página fuerza la sincronización con la nube. Umbral 70px. */
+  function bindPullToRefresh() {
+    if (window.matchMedia('(hover: none)').matches === false) return;   // solo táctil
+    let startY = 0, pulling = false;
+    document.addEventListener('touchstart', e => {
+      if (window.scrollY > 4 || document.querySelector('.modal-root.open')) { pulling = false; return; }
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }, { passive: true });
+    document.addEventListener('touchend', e => {
+      if (!pulling) return;
+      pulling = false;
+      const dy = e.changedTouches[0].clientY - startY;
+      if (dy > 70 && navigator.onLine) {
+        UI.toast('Sincronizando…', 'info', 1200);
+        syncWithCloud();
+      }
+    }, { passive: true });
+  }
+
+  /* ================= Sincronización inicial bidireccional =================
+     Al arrancar (y con el botón "Sync Now" / pull-to-refresh):
+     1) Con red + credenciales → descarga Supabase al espejo local
+        (la nube prevalece, LWW por updated_at) y luego sube la cola.
+     2) Sin red o sin credenciales → fallback silencioso al espejo
+        local (los datos del teléfono), sin errores molestos. */
+  let syncingNow = false;
+  async function syncWithCloud(opts = {}) {
+    const initial = !!opts.initial;
+    if (syncingNow) return;
+    const canSync = Cloud.hasCred() && navigator.onLine && !!Cloud.getClient();
+
+    if (!canSync) {
+      /* Fallback local silencioso: el espejo ya alimenta la UI */
+      if (initial) console.log('[AURA Sync] Arranque sin nube:',
+        !Cloud.hasCred() ? 'sin credenciales — modo local.' : 'sin conexión — usando caché local.');
+      updateSyncUI(navigator.onLine ? 'ok' : 'offline');
+      return;
+    }
+
+    syncingNow = true;
+    if (initial) updateSyncUI('syncing');
+    try {
+      Cloud.startRealtime();
+      const results = await Store.pullRemote();   // ⬇️ nube → local (prevalece)
+      const complete = results.notas && results.tareas && results.materias && results.clases;
+      await DBAdapter.flush();                    // ⬆️ cola → nube
+      if (!complete) {
+        UI.toast('Sincronización parcial — revisa tu conexión', 'info', 3000);
+      }
+    } catch (e) {
+      console.warn('[AURA Sync] syncWithCloud falló (sigo con caché local):', e && (e.message || e));
+    } finally {
+      syncingNow = false;
+      updateSyncUI('ok');
+      await refreshAll();   // re-render de la vista activa con lo descargado
+    }
+  }
+
+  /* Botón discreto "Sync Now" en la barra superior (solo con nube configurada) */
+  function bindSyncNow() {
+    const btn = $('syncNowBtn');
+    if (!btn) return;
+    btn.hidden = !Cloud.hasCred();
+    btn.addEventListener('click', async () => {
+      if (btn.dataset.busy) return;
+      btn.dataset.busy = '1';
+      const icon = btn.querySelector('.material-symbols-outlined');
+      if (icon) icon.style.animation = 'spin 1s linear infinite';
+      try { await syncWithCloud(); } finally {
+        if (icon) icon.style.animation = '';
+        delete btn.dataset.busy;
+      }
+    });
   }
 
   /* ================= Dashboard ================= */
@@ -1017,6 +1088,8 @@ const App = (() => {
       await DBAdapter.flush();    // vacía sync_queue (creaciones offline)
       await refreshAll();
       updateSyncUI('ok');
+      const sb = $('syncNowBtn');
+      if (sb) sb.hidden = false;   // ya hay nube: habilita "Sync Now"
     } catch (e) {
       UI.toast('Error conectando: ' + (e && e.message || e), 'err', 5000);
     } finally {
@@ -1151,7 +1224,7 @@ const App = (() => {
     toggleTask, deleteTask,
     ensureSubject,
     openMaterias,
-    markSynced,
+    markSynced, syncWithCloud,
     openEditor: id => Editor.open(id),
     openCapture: opts => {
       Capture.open();
