@@ -5,7 +5,7 @@
    - Gemini/API: network-only (no cacheamos respuestas privadas)
    ============================================================ */
 
-const VERSION = 'aura-v3.2.2';
+const VERSION = 'aura-v3.3.0';
 const SHELL_CACHE = `${VERSION}-shell`;
 const CDN_CACHE = `${VERSION}-cdn`;
 

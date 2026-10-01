@@ -9,7 +9,9 @@
    ============================================================ */
 
 const Cloud = (() => {
-  const CRED_KEY = 'aura_supabase_v1';
+  const CRED_KEY = 'aura_supabase_v1';   // blob JSON legacy (compat)
+  const KEY_URL = 'AURA_SUPABASE_URL';   // claves planas permanentes:
+  const KEY_KEY = 'AURA_SUPABASE_KEY';   // sobreviven a recargas y migraciones
 
   let client = null;          // instancia de window.supabase.createClient
   let channel = null;         // canal Realtime activo
@@ -20,7 +22,13 @@ const Cloud = (() => {
 
   function loadCred() {
     try {
-      cred = { url: '', key: '', ...JSON.parse(localStorage.getItem(CRED_KEY) || '{}') };
+      /* 1) claves planas (formato nuevo) · 2) blob JSON legacy → migración */
+      const url = (localStorage.getItem(KEY_URL) || '').trim();
+      const key = (localStorage.getItem(KEY_KEY) || '').trim();
+      if (url && key) { cred = { url, key }; return cred; }
+      const legacy = JSON.parse(localStorage.getItem(CRED_KEY) || '{}');
+      cred = { url: legacy.url || '', key: legacy.key || '' };
+      if (cred.url && cred.key) saveCred(cred.url, cred.key);   // migra y persiste
     } catch (e) {
       cred = { url: '', key: '' };
     }
@@ -29,7 +37,9 @@ const Cloud = (() => {
 
   function saveCred(url, key) {
     cred = { url: (url || '').trim(), key: (key || '').trim() };
-    localStorage.setItem(CRED_KEY, JSON.stringify(cred));
+    localStorage.setItem(KEY_URL, cred.url);
+    localStorage.setItem(KEY_KEY, cred.key);
+    localStorage.setItem(CRED_KEY, JSON.stringify(cred));   // compat
   }
 
   function hasCred() { return !!(cred.url && cred.key); }
@@ -45,17 +55,33 @@ const Cloud = (() => {
   /* ---------------- Cliente ---------------- */
 
   function getClient() { return client; }
+  function getCred() { return { ...cred }; }
 
-  function init() {
+  let retryTimer = null;
+  function init(retry = 0) {
     loadCred();
-    if (!hasCred() || typeof window.supabase === 'undefined') {
-      emitStatus('offline');
+    if (!hasCred()) { emitStatus('offline'); return null; }
+
+    /* CDN de supabase-js aún no cargado (recarga con red lenta o SW frío):
+       NO se rinde ni vuelve a pedir credenciales — reintenta hasta ~15 s. */
+    if (typeof window.supabase === 'undefined') {
+      clearTimeout(retryTimer);
+      if (retry < 30) {
+        retryTimer = setTimeout(() => init(retry + 1), 500);
+        if (retry === 0) console.warn('[AURA Auth] supabase-js (CDN) aún no disponible; reintentando con credenciales guardadas…');
+        return null;
+      }
+      emitStatus('error', new Error('supabase-js (CDN) no disponible'));
       return null;
     }
+
     try {
       client = window.supabase.createClient(cred.url, cred.key, {
         auth: { persistSession: false, autoRefreshToken: false }
       });
+      window.supabaseClient = client;   // instancia global para fetch/save
+      console.log('[AURA Auth] 🔑 Credenciales de Supabase recuperadas de localStorage.');
+      console.log('[AURA Auth] ⚡ Cliente de Supabase conectado con éxito.');
       emitStatus('ok');
       return client;
     } catch (e) {
@@ -123,8 +149,11 @@ const Cloud = (() => {
 
   function disconnect() {
     stopRealtime();
+    clearTimeout(retryTimer);
     client = null;
     cred = { url: '', key: '' };
+    localStorage.removeItem(KEY_URL);
+    localStorage.removeItem(KEY_KEY);
     localStorage.removeItem(CRED_KEY);
     emitStatus('offline');
   }
@@ -155,10 +184,11 @@ const Cloud = (() => {
   });
 
   return {
-    init, getClient, hasCred, onStatus,
+    init, getClient, getCred, hasCred, onStatus,
     startRealtime, stopRealtime,
     testConnection, connect, disconnect,
     get url() { return cred.url; },
+    get key() { return cred.key; },
     get connected() { return !!client && !!channel; }
   };
 })();

@@ -334,15 +334,19 @@ const App = (() => {
      2) Sin red o sin credenciales → fallback silencioso al espejo
         local (los datos del teléfono), sin errores molestos. */
   let syncingNow = false;
+  let initialSyncDone = false;
   async function syncWithCloud(opts = {}) {
     const initial = !!opts.initial;
     if (syncingNow) return;
     const canSync = Cloud.hasCred() && navigator.onLine && !!Cloud.getClient();
 
     if (!canSync) {
-      /* Fallback local silencioso: el espejo ya alimenta la UI */
-      if (initial) console.log('[AURA Sync] Arranque sin nube:',
-        !Cloud.hasCred() ? 'sin credenciales — modo local.' : 'sin conexión — usando caché local.');
+      /* Fallback local silencioso: el espejo ya alimenta la UI.
+         Si las credenciales EXISTEN pero el cliente aún no está listo
+         (CDN tardando), updateSyncUI disparará este sync al conectar. */
+      if (initial && !Cloud.hasCred()) {
+        console.log('[AURA Sync] Arranque sin nube: sin credenciales — modo local.');
+      }
       updateSyncUI(navigator.onLine ? 'ok' : 'offline');
       return;
     }
@@ -361,6 +365,7 @@ const App = (() => {
       console.warn('[AURA Sync] syncWithCloud falló (sigo con caché local):', e && (e.message || e));
     } finally {
       syncingNow = false;
+      initialSyncDone = true;
       updateSyncUI('ok');
       await refreshAll();   // re-render de la vista activa con lo descargado
     }
@@ -1028,6 +1033,13 @@ const App = (() => {
     $('setGeminiModel').value = s.geminiModel || 'gemini-3.5-flash';
     $('setUserName').value = s.userName || 'Estudiante';
     $('setNotifications').checked = !!s.notifications;
+    /* Credenciales Supabase persistidas: visibles al recargar
+       (prueban que NO se perdieron y permiten reconnect en 1 clic) */
+    const c = Cloud.getCred ? Cloud.getCred() : { url: '', key: '' };
+    if ($('setSupabaseURL')) $('setSupabaseURL').value = c.url || '';
+    if ($('setSupabaseKey')) $('setSupabaseKey').value = c.key || '';
+    const sb = $('syncNowBtn');
+    if (sb) sb.hidden = !Cloud.hasCred();
   }
 
   function saveSettings() {
@@ -1132,6 +1144,12 @@ const App = (() => {
       if (!hasRemote) set('var(--text-3)', 'Guardado local');
       else if (pending > 0) set('var(--warn)', `Nube · ${pending} pendiente${pending === 1 ? '' : 's'}`);
       else set('var(--ok)', 'Nube activa · Sincronizado');
+      /* Cliente listo tras recarga (o CDN tardío): dispara la
+         sincronización inicial si aún no se ha hecho. */
+      if (hasRemote && !initialSyncDone && navigator.onLine) {
+        initialSyncDone = true;
+        syncWithCloud();
+      }
     }
   }
 
