@@ -133,12 +133,24 @@ const Cloud = (() => {
   window.addEventListener('online', () => {
     if (hasCred() && client) { startRealtime(); }
     else if (hasCred()) init();
+    /* Recuperada la red: baja lo creado en otros dispositivos + sube la cola */
+    if (hasCred() && typeof Store !== 'undefined' && Store.pullRemote) {
+      Store.pullRemote().catch(() => {});
+    }
   });
   window.addEventListener('offline', () => emitStatus('offline'));
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && hasCred()) {
       if (client && !channel) startRealtime();
       else if (!client) init();
+      /* Multi-dispositivo: al volver a la app (desde otro móvil/PC)
+         re-pulea la nube al espejo local y vacía la sync_queue. */
+      if (typeof Store !== 'undefined' && Store.pullRemote) {
+        Store.pullRemote().catch(() => {});
+      }
+      if (typeof DBAdapter !== 'undefined' && DBAdapter.flush) {
+        DBAdapter.flush();
+      }
     }
   });
 

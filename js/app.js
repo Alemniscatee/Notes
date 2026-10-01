@@ -320,9 +320,11 @@ const App = (() => {
 
   async function renderDashboard() {
     const s = Settings.get();
-    $('dashName').textContent = s.userName || 'Estudiante';
+    const nameEl = $('dashName');
+    if (nameEl) nameEl.textContent = s.userName || 'Estudiante';
     const h = new Date().getHours();
-    $('dashGreeting').textContent =
+    const greetEl = $('dashGreeting');   // puede no existir: no debe romper los stats
+    if (greetEl) greetEl.textContent =
       h < 12 ? 'Buenos días — esto es lo tuyo para hoy.' :
       h < 19 ? 'Buenas tardes — esto es lo tuyo para hoy.' :
                'Buenas noches — esto es lo tuyo para hoy.';
@@ -1048,7 +1050,10 @@ const App = (() => {
     };
 
     if (status === 'syncing') set('var(--warn)', 'Sincronizando…');
-    else if (status === 'error' || status === 'denied') set('var(--alert)', 'Error de conexión');
+    else if (status === 'error' || status === 'denied') {
+      set('var(--alert)', 'Error de conexión');
+      if (detail) console.error('[AURA Sync] Estado nube:', detail);
+    }
     else if (status === 'offline') set(hasRemote ? 'var(--alert)' : 'var(--text-3)', hasRemote ? 'Sin conexión' : 'Guardado local');
     else if (status === 'ok') {
       if (!hasRemote) set('var(--text-3)', 'Guardado local');
@@ -1091,7 +1096,10 @@ const App = (() => {
     }
   }
 
-  /* ================= Refresh global ================= */
+  /* ================= Refresh global =================
+     try/catch: un fallo de render en una vista no debe abortar los
+     demás refrescos (antes un TypeError en el dashboard dejaba los
+     contadores en 0 sin explicación aparente). */
   async function refreshAll() {
     const [subjects, tasks, notes] = await Promise.all([
       Store.getSubjects(), Store.getTasks(), Store.getNotes()
@@ -1101,11 +1109,14 @@ const App = (() => {
     notesCache = notes;
     // El selector de materias por chips sigue a las materias en vivo
     if (window.MateriaPicker) MateriaPicker.refresh();
-    renderDashboard();
-    if (currentView === 'tasks') renderTasks();
-    if (currentView === 'notes') renderNotes();
-    if (currentView === 'calendar') Cal.render();
-    if (currentView === 'timetable') Timetable.render();
+    try { renderDashboard(); } catch (e) { console.error('[AURA] Dashboard render:', e); }
+    try { if (currentView === 'tasks') renderTasks(); } catch (e) { console.error('[AURA] Tasks render:', e); }
+    try { if (currentView === 'notes') renderNotes(); } catch (e) { console.error('[AURA] Notes render:', e); }
+    try { if (currentView === 'calendar') Cal.render(); } catch (e) { console.error('[AURA] Calendar render:', e); }
+    try { if (currentView === 'timetable') Timetable.render(); } catch (e) { console.error('[AURA] Timetable render:', e); }
+    /* Diagnóstico: si hay eventos sin subir, el motivo está en consola */
+    const pend = (window.DBAdapter ? DBAdapter.queueLength() : 0);
+    if (pend > 0) console.warn(`[AURA Sync] ${pend} evento(s) pendiente(s) de subir a la nube. ¿Ejecutaste el supabase-schema.sql actualizado? (fix RLS 42501)`);
   }
 
   /* ================= PWA: SW + install ================= */
